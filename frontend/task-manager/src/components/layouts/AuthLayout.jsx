@@ -1,4 +1,4 @@
- import React from "react";
+import React from "react";
 import UI_IMG from "../../assets/images/auth-img.png";
 
 const AuthLayout = ({children})=> {
