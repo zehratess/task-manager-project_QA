@@ -2,11 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
-import Dashboard from "../Admin/Dashboard";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import AvatarGroup from "../../components/AvatarGroup/AvatarGroup";
 import moment from "moment";
 import { LuSquareArrowOutUpRight } from "react-icons/lu";
+import { toast } from "react-hot-toast";
 
 const ViewTaskDetails = () => {
   const { id } = useParams();
@@ -23,25 +23,26 @@ const ViewTaskDetails = () => {
     }
   };
 
-  // get Task info by ID
-  const getTaskDetailsByID = async () => {
+  // get task info by ID
+  const getTaskDetailsByID = React.useCallback(async () => {
     try {
       const response = await axiosInstance.get(
         API_PATHS.TASKS.GET_TASK_BY_ID(id)
       );
 
       if (response.data) {
-        const taskInfo = response.data;
+        // const taskInfo = response.data; hiç kullanılmıyor
         setTask(response.data);
       }
     } catch (error) {
       console.error("Error fetching task details:", error);
+      toast.error("Failed to fetch task details. Please try again.");
     }
-  };
+  }, [id]);
 
   // handle todo check
   const updateTodoChecklist = async (index) => {
-    const todoChecklist = [...task?.todoChecklist];
+    const todoChecklist = [...(task?.todoChecklist || [])];
     const taskId = id;
 
     if (todoChecklist && todoChecklist[index]) {
@@ -57,18 +58,23 @@ const ViewTaskDetails = () => {
       if (response.status === 200) {
         setTask(response.data?.task || task);
       } else {
-        // Optionally revert the toggle if the API call fails.
+        // Revert the toggle if the API call fails
         todoChecklist[index].completed = !todoChecklist[index].completed;
       }
     } catch (error) {
+      //todoChecklist[index].completed = !todoChecklist[index].completed;
+      console.error("Error updating todo checklist:", error);
+      toast.error("Failed to update checklist. Please try again.");
+      // Revert the toggle on error
       todoChecklist[index].completed = !todoChecklist[index].completed;
+      setTask({ ...task, todoChecklist });
     }
   };
 
   // Handle attachment link click
   const handleLinkClick = (link) => {
     if (!/^https?:\/\//i.test(link)) {
-      link = "http://" + link; //default to https
+      link = "https://" + link; //default to https
     }
     window.open(link, "_blank");
   };
@@ -77,8 +83,8 @@ const ViewTaskDetails = () => {
     if (id) {
       getTaskDetailsByID();
     }
-    return () => {};
-  }, [id]);
+    //return () => {};
+  }, [id, getTaskDetailsByID]);
 
   return (
     <DashboardLayout activeMenu="My Tasks">
@@ -94,7 +100,7 @@ const ViewTaskDetails = () => {
                 <div
                   className={`text-[11px] md:text-[11px] font-medium ${getStatusTagColor(
                     task?.status
-                  )} px-4 py-0.5 rounded `}
+                  )} px-4 py-0.5 rounded`}
                 >
                   {task?.status}
                 </div>
@@ -178,7 +184,7 @@ const InfoBox = ({ label, value }) => {
     <>
       <label className="text-xs font-medium text-slate-500">{label}</label>
 
-      <p className="text-{12px} md:text-{13px} font-medium text-gray-700 mt:0.5">
+      <p className="text-[12px] md:text-[13px] font-medium text-gray-700 mt-0.5">
         {value}
       </p>
     </>
@@ -194,7 +200,7 @@ const TodoCheckList = ({ text, isChecked, onChange }) => {
         onChange={onChange}
         className="w-4 h-4 text-primary border-gray-300 rounded-sm outline-none cursor-pointer"
       />
-      <p className="text-{13px} text-gray-800">{text}</p>
+      <p className="text-[13px] text-gray-800">{text}</p>
     </div>
   );
 };
@@ -206,8 +212,8 @@ const Attachment = ({ link, index, onClick }) => {
       onClick={onClick}
     >
       <div className="flex-1 flex items-center gap-3">
-        <span className="text-xs text-gray-400 font-semi-bold mr-2">
-          {index < 9 ? "0${index + 1}" : index + 1}
+        <span className="text-xs text-gray-400 font-semibold mr-2">
+          {index < 9 ? `0${index + 1}` : index + 1}
         </span>
 
         <p className="text-xs text-black">{link}</p>
