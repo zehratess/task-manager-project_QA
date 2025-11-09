@@ -63,7 +63,7 @@
          </div>
  
          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-           {allTasks?.map((item, index) => (
+           {allTasks?.map((item) => ( //parametrelerde index de vardı ama kullanılmıyordu
              <TaskCard
                key={item._id}
                title={item.title}

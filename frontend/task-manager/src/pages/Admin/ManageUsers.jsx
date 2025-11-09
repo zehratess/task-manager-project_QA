@@ -5,6 +5,7 @@ import axiosInstance from "../../utils/axiosInstance";
 import { useEffect, useState } from "react";
 import { LuFileSpreadsheet } from "react-icons/lu";
 import UserCard from "../../components/Cards/UserCard";
+import { toast } from "react-hot-toast";
 
 const ManageUsers = () => {
   const [allUsers, setAllUsers] = useState([]);
@@ -17,10 +18,11 @@ const ManageUsers = () => {
       }
     } catch (error) {
       console.error("Error fetching users:", error);
+      toast.error("Failed to fetch users. Please try again.");
     }
   };
 
-  //download task report
+  //download user report
   const handleDownloadReport = async () => {
     try {
       const response = await axiosInstance.get(API_PATHS.REPORTS.EXPORT_USERS, {
@@ -37,14 +39,13 @@ const ManageUsers = () => {
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Error downloading expense details:", error);
-      toast.error("Failed to download expense details. Please try again.");
+      console.error("Error downloading user details:", error);
+      toast.error("Failed to download user details. Please try again.");
     }
   };
 
   useEffect(() => {
-    getAllUsers();
-    return () => {};
+    getAllUsers(); //return () => {};
   }, []);
 
   return (
@@ -64,10 +65,12 @@ const ManageUsers = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
           {allUsers.map((user) => (
-            <UserCard key={user.id} userInfo={user} />
+            <UserCard key={user._id || user.id} userInfo={user} />
           ))}
         </div>
       </div>
     </DashboardLayout>
   );
 };
+
+export default ManageUsers;
