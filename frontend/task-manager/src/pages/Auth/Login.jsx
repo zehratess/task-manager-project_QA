@@ -1,32 +1,58 @@
 import React, { useState } from "react";
 import AuthLayout from "../../components/layouts/AuthLayout";
 import { useNavigate } from "react-router-dom";
-
+import { UserContext } from "../../context/userContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
 
+  const { updateUser } = useContext(UserContext);
   const navigate = useNavigate();
 
   // Handle Login Form Submit
   const handleLogin = async (e) => {
     e.preventDefault();
 
-if (!validateEmail(email)) {
+    if (!validateEmail(email)) {
       setError("Please enter a valid email address.");
       return;
     }
-    if(!password){
-        setError("Please enter your password.");
-        return;
-    }   
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
 
     setError("");
 
-    // Simulate API call for login
+    //Login API Call
+    try {
+      const response = await axiosInstance.post(API_PATHS.AUTH.LOGIN, {
+        email,
+        password,
+      });
 
+      const { token, role } = response.data;
+
+      if (token) {
+        localStorage.setItem("token", token);
+        updateUser(response.data);
+
+        //Redirect based on role
+        if (role === "admin") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/user/dashboard");
+        }
+      }
+    } catch (error) {
+      if (error.response && error.response.data.message) {
+        setError(error.response.data.message);
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
+    }
   };
 
   return (
@@ -38,33 +64,33 @@ if (!validateEmail(email)) {
         </p>
 
         <form onSubmit={handleLogin}>
-            <Input
-                label="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="text"
-                placeholder="john@example.com"
-            />
-            <Input
-                label="Password"
-                value={email}
-                onChange={(e) => setPassword(e.target.value)}
-                type="password"
-                placeholder="Min 8 characters"
-            />
+          <Input
+            label="Email Address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            placeholder="john@example.com"
+          />
+          <Input
+            label="Password"
+            value={email}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            placeholder="Min 8 characters"
+          />
 
-            {error && <p className="text-red-500 text-xs pb-2.5">{error}</p>}
-        
-            <button type="submit" className="btn-primary">
-                Log In
-            </button>
+          {error && <p className="text-red-500 text-xs pb-2.5">{error}</p>}
 
-            <p className="text-{13px} text-slate-800 mt-3">
-                Don't have an account?{" "}
-                <Link className="font-medium text-primary underline" to="/signup">
-                    Sign Up
-                </Link>
-            </p>
+          <button type="submit" className="btn-primary">
+            Log In
+          </button>
+
+          <p className="text-{13px} text-slate-800 mt-3">
+            Don't have an account?{" "}
+            <Link className="font-medium text-primary underline" to="/signup">
+              Sign Up
+            </Link>
+          </p>
         </form>
       </div>
     </AuthLayout>
