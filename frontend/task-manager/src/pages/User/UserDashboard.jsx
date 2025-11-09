@@ -9,7 +9,7 @@ import moment from "moment";
 import { addThousandsSeparator } from "../../utils/helper";
 import InfoCard from "../../components/Cards/InfoCard";
 import { LuArrowRight } from "react-icons/lu";
-import TaskListTable from "../../components/layouts/TaskListTable";
+import TaskListTable from "../../components/TaskListTable";
 import CustomPieChart from "../../components/Charts/CustomPieCharts";
 import CustomBarChart from "../../components/Charts/CustomBarChart";
 import { IoMdCard } from "react-icons/io";

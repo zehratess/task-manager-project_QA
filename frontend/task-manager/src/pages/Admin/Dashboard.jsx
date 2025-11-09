@@ -5,15 +5,15 @@ import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import moment from "moment";
-import { addThousandsSeparator } from "../../utils/helpers";
-import InfoCard from "../../components/InfoCard";
+import { addThousandsSeparator } from "../../utils/helper";
+import InfoCard from "../../components/Cards/InfoCard";
 import { LuArrowRight } from "react-icons/lu";
-import TaskListTable from "../../components/tables/TaskListTable";
+import TaskListTable from "../../components/TaskListTable";
 import CustomPieChart from "../../components/Charts/CustomPieCharts";
 import CustomBarChart from "../../components/Charts/CustomBarChart";
 import { IoMdCard } from "react-icons/io";
 import { toast } from "react-hot-toast";
-import { UserContext } from "../../context/userContext";
+import { UserContext } from "../../context/UserContext";
 
 const COLORS = ["#8D51FF", "#00B8DB", "#7BCE00"];
 
