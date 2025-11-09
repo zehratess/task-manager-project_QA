@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import { LuFileSpreadsheet } from "react-icons/lu";
+import TaskStatusTabs from "../../components/TaskStatusTabs/TaskStatusTabs";
+import TaskCard from "../../components/TaskCard/TaskCard";
+import { toast } from "react-hot-toast";
 
 const ManageTasks = () => {
   const [allTasks, setAllTasks] = useState([]);
@@ -34,7 +37,8 @@ const ManageTasks = () => {
 
       setTabs(statusArray);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error("Error fetching tasks:", error);
+      toast.error("Failed to fetch tasks. Please try again.");
     }
   };
 
@@ -59,14 +63,14 @@ const ManageTasks = () => {
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Error downloading expense details:", error);
-      toast.error("Failed to download expense details. Please try again.");
+      console.error("Error downloading task details:", error);
+      toast.error("Failed to download task details. Please try again.");
     }
   };
 
   useEffect(() => {
-    getAllTasks(filterStatus);
-    return () => {};
+    getAllTasks(); //(filterStatus)
+    //return () => {};
   }, [filterStatus]);
 
   return (
@@ -104,7 +108,7 @@ const ManageTasks = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          {allTasks?.map((item, index) => (
+          {allTasks?.map((item) => (  //parametrelerde index de vardı ama kullanılmıyor
             <TaskCard
               key={item._id}
               title={item.title}
@@ -114,7 +118,7 @@ const ManageTasks = () => {
               dueDate={item.dueDate}
               assignedTo={item.assignedTo?.map((item) => item.profileImageUrl)}
               progress={item.progress}
-              crearedAt={item.createdAt}
+              createdAt={item.createdAt}
               completedTodoCount={item.completedTodoCount || 0}
               todoChecklist={item.todoChecklist || []}
               attachmentCount={item.attachments?.count || 0}

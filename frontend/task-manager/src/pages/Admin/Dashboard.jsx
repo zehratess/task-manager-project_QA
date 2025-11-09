@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useUserAuth } from "../../hooks/useUserAuth";
 import { useContext } from "react";
-import { UserContext } from "../../context/UserContext";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
@@ -13,6 +12,8 @@ import { LuArrowRight } from "react-icons/lu";
 import TaskListTable from "../../components/tables/TaskListTable";
 import CustomPieChart from "../../components/Charts/CustomPieCharts";
 import CustomBarChart from "../../components/Charts/CustomBarChart";
+import { IoMdCard } from "react-icons/io";
+import { UserContext } from "../../context/UserContext";
 
 const COLORS = ["#8D51FF", "#00B8DB", "#7BCE00"];
 
@@ -59,7 +60,7 @@ const Dashboard = () => {
         prepareChartData(response.data?.charts || null);
       }
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error("Error fetching dashboard data:", error);
     }
   };
 
@@ -69,8 +70,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     getDashboardData();
-
-    return () => {};
   }, []);
 
   return (
@@ -79,13 +78,13 @@ const Dashboard = () => {
         <div>
           <div className="col-span-3">
             <h2 className="text-xl md:text-2xl">Good Morning! {user?.name}</h2>
-            <p className="text-xs md:text-{13px} text-gray-400 mt-1.5">
+            <p className="text-xs md:text-[13px] text-gray-400 mt-1.5">
               {moment().format("dddd Do MMM YYYY")}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grip-cols-4 gap-3 md:gap-6 mt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mt-5">
           <InfoCard
             icon={<IoMdCard />}
             label="Total Tasks"
@@ -112,7 +111,7 @@ const Dashboard = () => {
           />
           <InfoCard
             icon={<IoMdCard />}
-            label="Compeleted Tasks"
+            label="Completed Tasks"
             value={addThousandsSeparator(
               dashboardData?.charts?.taskDistribution?.Completed || 0
             )}
