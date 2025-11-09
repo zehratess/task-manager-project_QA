@@ -1,6 +1,6 @@
-import React, { useState,useContext } from "react";
+import React, { useState, useContext } from "react";
 import AuthLayout from "../../components/layouts/AuthLayout";
-import { useNavigate , Link} from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { UserContext } from "../../context/userContext";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
@@ -20,8 +20,9 @@ const SignUp = () => {
 
   const { updateUser } = useContext(UserContext);
   const navigate = useNavigate();
+
   // Handle Sign Up Form Submit
-  const handleLogin = async (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
 
     let profileImageUrl = "";
@@ -35,16 +36,17 @@ const SignUp = () => {
       setError("Please enter a valid email address.");
       return;
     }
+    
+    if (!password) {
+      setError("Please enter the password.");
+      return;
+    }
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters long.");
       return;
     }
 
-    if (!password) {
-      setError("Please enter the password.");
-      return;
-    }
 
     setError("");
 
@@ -56,7 +58,7 @@ const SignUp = () => {
         profileImageUrl = imgUploadRes.imageUrl || "";
       }
 
-      const response = await axiosInstance.post(API_PATHS.AUTH.ReGISTER, {
+      const response = await axiosInstance.post(API_PATHS.AUTH.REGISTER, {
         name: fullName,
         email,
         password,
@@ -114,7 +116,7 @@ const SignUp = () => {
             />
             <Input
               label="Password"
-              value={email}
+              value={password}
               onChange={(e) => setPassword(e.target.value)}
               type="password"
               placeholder="Min 8 characters"
@@ -133,9 +135,9 @@ const SignUp = () => {
             Sign Up
           </button>
 
-          <p className="text-{13px} text-slate-800 mt-3">
+          <p className="text-[13px] text-slate-800 mt-3">
             Already have an account?{" "}
-            <Link className="font-medium text-primary underline" to="/signup">
+            <Link className="font-medium text-primary underline" to="/login">
               Log In
             </Link>
           </p>

@@ -1,7 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import AuthLayout from "../../components/layouts/AuthLayout";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { UserContext } from "../../context/userContext";
+import axiosInstance from "../../utils/axiosInstance";
+import { API_PATHS } from "../../utils/apiPaths";
+import { validateEmail } from "../../utils/helper";
+import Input from "../../components/Inputs/Input";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -73,7 +77,7 @@ const Login = () => {
           />
           <Input
             label="Password"
-            value={email}
+            value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
             placeholder="Min 8 characters"
@@ -85,7 +89,7 @@ const Login = () => {
             Log In
           </button>
 
-          <p className="text-{13px} text-slate-800 mt-3">
+          <p className="text-[13px] text-slate-800 mt-3">
             Don't have an account?{" "}
             <Link className="font-medium text-primary underline" to="/signup">
               Sign Up

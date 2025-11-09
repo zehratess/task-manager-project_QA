@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import PRIORITY_DATA from "../../utils/data";
 import axiosInstance from "../../utils/axiosInstance";
@@ -7,6 +7,12 @@ import toast from "react-hot-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { LuTrash2 } from "react-icons/lu";
+import SelectDropdown from "../../components/SelectDropdown/SelectDropdown";
+import SelectUsers from "../../components/SelectUsers/SelectUsers";
+import TodoListInput from "../../components/TodoListInput/TodoListInput";
+import AddAttachmentsInput from "../../components/AddAttachmentsInput/AddAttachmentsInput";
+import Modal from "../../components/Modal/Modal";
+import DeleteAlert from "../../components/DeleteAlert/DeleteAlert";
 
 const CreateTask = () => {
   const location = useLocation();
@@ -31,6 +37,7 @@ const CreateTask = () => {
   const [openDeleteAlert, setOpenDeleteAlert] = useState(false);
 
   const handleValueChange = (key, value) => {
+    setError(""); // Kullanıcı düzeltme yaptığında error'u temizle (cl)
     setTaskData((prevData) => ({ ...prevData, [key]: value }));
   };
 
@@ -66,7 +73,7 @@ const CreateTask = () => {
       clearData();
     } catch (error) {
       console.error("Error creating task:", error);
-      setLoading(false);
+      toast.error("Failed to create task");
     } finally {
       setLoading(false);
     }
@@ -100,7 +107,7 @@ const CreateTask = () => {
       toast.success("Task updated successfully!");
     } catch (error) {
       console.error("Error updating task:", error);
-      setLoading(false);
+      toast.error("Failed to update task");
     } finally {
       setLoading(false);
     }
@@ -131,7 +138,7 @@ const CreateTask = () => {
     }
 
     if (taskData.todoChecklist?.length === 0) {
-      setError("Add atleast one todo task");
+      setError("Add at least one todo task");
       return;
     }
 
@@ -143,35 +150,33 @@ const CreateTask = () => {
     createTask();
   };
 
-  const getTaskDetailsByID = async () => {
-    const getTaskDetailsByID = async () => {
-      try {
-        const response = await axiosInstance.get(
-          API_PATHS.TASKS.GET_TASK_BY_ID(taskId)
-        );
+  const getTaskDetailsByID = useCallback(async () => {
+    try {
+      const response = await axiosInstance.get(
+        API_PATHS.TASKS.GET_TASK_BY_ID(taskId)
+      );
 
-        if (response.data) {
-          const taskInfo = response.data;
-          setCurrentTask(taskInfo);
+      if (response.data) {
+        const taskInfo = response.data;
+        setCurrentTask(taskInfo);
 
-          setTaskData((prevState) => ({
-            title: taskInfo.title,
-            description: taskInfo.description,
-            priority: taskInfo.priority,
-            dueDate: taskInfo.dueDate
-              ? moment(taskInfo.dueDate).format("YYYY-MM-DD")
-              : null,
-            assignedTo: taskInfo?.assignedTo.map((item) => item?._id) || [],
-            todoChecklist:
-              taskInfo?.todoChecklist.map((item) => item?.text) || [],
-            attachments: taskInfo?.attachments || [],
-          }));
-        }
-      } catch (error) {
-        console.error("Error fetching users:", error);
+        setTaskData((prevState) => ({
+          title: taskInfo.title,
+          description: taskInfo.description,
+          priority: taskInfo.priority,
+          dueDate: taskInfo.dueDate
+            ? moment(taskInfo.dueDate).format("YYYY-MM-DD")
+            : null,
+          assignedTo: taskInfo?.assignedTo.map((item) => item?._id) || [],
+          todoChecklist:
+            taskInfo?.todoChecklist.map((item) => item?.text) || [],
+          attachments: taskInfo?.attachments || [],
+        }));
       }
-    };
-  };
+    } catch (error) {
+      console.error("Error fetching task:", error);
+    }
+  }, [taskId]);
 
   // Delete Task
   const deleteTask = async () => {
@@ -179,13 +184,14 @@ const CreateTask = () => {
       await axiosInstance.delete(API_PATHS.TASKS.DELETE_TASK(taskId));
 
       setOpenDeleteAlert(false);
-      toast.success("Expense details deleted successfully");
+      toast.success("Task deleted successfully");
       navigate("/admin/tasks");
     } catch (error) {
       console.error(
-        "Error deleting expense:",
+        "Error deleting task:",
         error.response?.data?.message || error.message
       );
+      toast.error("Failed to delete task");
     }
   };
 
@@ -193,14 +199,13 @@ const CreateTask = () => {
     if (taskId) {
       getTaskDetailsByID();
     }
-    return () => {};
-  }, [taskId]);
+  }, [taskId, getTaskDetailsByID]);
 
   return (
     <DashboardLayout activeMenu="Create Task">
       <div className="mt-5">
         <div className="grid grid-cols-1 md:grid-cols-4 mt-4">
-          <div className="form-card col-sapn-3">
+          <div className="form-card col-span-3">
             <div className="flex items-center justify-between">
               <h2 className="text-xl md:text-xl font-medium">
                 {taskId ? "Update Task" : "Create Task"}
@@ -208,7 +213,7 @@ const CreateTask = () => {
 
               {taskId && (
                 <button
-                  className="flex items-center gap-1.5 text-{13px} font-medium text-rose-500 bg-rose-500 rounded px-2 py-1 border border-rose-100 hover:border-rose-300 cursor-pointer"
+                  className="flex items-center gap-1.5 text-[13px] font-medium text-rose-500 bg-rose-500 rounded px-2 py-1 border border-rose-100 hover:border-rose-300 cursor-pointer" //className="... text-rose-500 bg-rose-50 ..."   // ✅ Açık arkaplan // veya className="... text-white bg-rose-500 ..."     // ✅ Beyaz text
                   onClick={() => setOpenDeleteAlert(true)}
                 >
                   <LuTrash2 className="text-base" /> Delete

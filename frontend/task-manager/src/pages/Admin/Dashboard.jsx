@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState ,useContext } from "react";
 import { useUserAuth } from "../../hooks/useUserAuth";
-import { useContext } from "react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
@@ -13,7 +12,8 @@ import TaskListTable from "../../components/tables/TaskListTable";
 import CustomPieChart from "../../components/Charts/CustomPieCharts";
 import CustomBarChart from "../../components/Charts/CustomBarChart";
 import { IoMdCard } from "react-icons/io";
-import { UserContext } from "../../context/UserContext";
+import { toast } from "react-hot-toast";
+import { UserContext } from "../../context/userContext";
 
 const COLORS = ["#8D51FF", "#00B8DB", "#7BCE00"];
 
@@ -61,6 +61,7 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to fetch dashboard data. Please try again.");
     }
   };
 
@@ -162,3 +163,32 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+//eğer grid yapısı çalışmazsa claude önerisi(124-160 satırlar arasına ekle):
+// {/* Chart'lar - Yan yana */}
+// <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
+//   <div className="card">
+//     <div className="flex items-center justify-between">
+//       <h5 className="font-medium">Task Distribution</h5>
+//     </div>
+//     <CustomPieChart data={pieChartData} colors={COLORS} />
+//   </div>
+
+//   <div className="card">
+//     <div className="flex items-center justify-between">
+//       <h5 className="font-medium">Task Priority Levels</h5>
+//     </div>
+//     <CustomBarChart data={barChartData} />
+//   </div>
+// </div>
+
+// {/* Recent Tasks - Ayrı, tam genişlik */}
+// <div className="card my-4 md:my-6">
+//   <div className="flex items-center justify-between">
+//     <h5 className="text-lg">Recent Tasks</h5>
+//     <button className="card-btn" onClick={onSeeMore}>
+//       See All <LuArrowRight className="text-base" />
+//     </button>
+//   </div>
+//   <TaskListTable tableData={dashboardData?.recentTasks || []} />
+// </div>
