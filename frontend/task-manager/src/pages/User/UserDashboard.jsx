@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useContext } from "react";
 import { useUserAuth } from "../../hooks/useUserAuth";
-import { UserContext } from "../../context/userContext";
+import { UserContext } from "../../context/UserContext";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import moment from "moment";
-import { addThousandsSeparator } from "../../utils/helpers";
+import { addThousandsSeparator } from "../../utils/helper";
 import InfoCard from "../../components/InfoCard";
 import { LuArrowRight } from "react-icons/lu";
 import TaskListTable from "../../components/tables/TaskListTable";

@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import { LuFileSpreadsheet } from "react-icons/lu";
-import TaskStatusTabs from "../../components/TaskStatusTabs/TaskStatusTabs";
-import TaskCard from "../../components/TaskCard/TaskCard";
+import TaskStatusTabs from "../../components/TaskStatusTabs";
+import TaskCard from "../../components/Cards/TaskCard";
 import { toast } from "react-hot-toast";
 
 const MyTasks = () => {
