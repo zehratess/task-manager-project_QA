@@ -1,5 +1,5 @@
  import React, { use, useEffect, useState } from "react";
-import { API_PATHS } from "../../utils.apiPaths";
+import { API_PATHS } from "../../utils/apiPaths";
 import axiosInstance from "../../utils/axiosInstance";
 import { LuUsers } from "react-icons/lu";
 import Modal from "../Modal";

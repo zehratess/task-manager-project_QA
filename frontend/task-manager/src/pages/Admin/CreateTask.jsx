@@ -7,12 +7,12 @@ import toast from "react-hot-toast";
 import { useLocation, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { LuTrash2 } from "react-icons/lu";
-import SelectDropdown from "../../components/SelectDropdown/SelectDropdown";
-import SelectUsers from "../../components/SelectUsers/SelectUsers";
-import TodoListInput from "../../components/TodoListInput/TodoListInput";
-import AddAttachmentsInput from "../../components/AddAttachmentsInput/AddAttachmentsInput";
-import Modal from "../../components/Modal/Modal";
-import DeleteAlert from "../../components/DeleteAlert/DeleteAlert";
+import SelectDropdown from "../../components/Inputs/SelectDropdown";
+import SelectUsers from "../../components/Inputs/SelectUsers";
+import TodoListInput from "../../components/Inputs/TodoListInput";
+import AddAttachmentsInput from "../../components/Inputs/AddAttachmentsInput";
+import Modal from "../../components/Modal";
+import DeleteAlert from "../../components/DeleteAlert";
 
 const CreateTask = () => {
   const location = useLocation();
