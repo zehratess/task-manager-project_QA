@@ -120,9 +120,9 @@ const SignUp = () => {
               placeholder="Min 8 characters"
             />
             <Input
-              label="Admim Invite Token (Optional)"
-              value={email}
-              onChange={(e) => setPassword(e.target.value)}
+              label="Admin Invite Token (Optional)"
+              value={adminInviteToken}
+              onChange={(e) => setAdminInviteToken(e.target.value)}
               type="text"
               placeholder="6 Digit Code"
             />

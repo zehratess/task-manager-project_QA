@@ -17,36 +17,35 @@ const UserProvider = ({ children }) => {
       return;
     }
 
-  const fetchUser = async () => {
-    try {
-      const response = await axiosInstance.get(API_PATHS.AUTH.GET_PROFILE);
-      setUser(response.data);
-    } catch (error) {
-      console.error("User not authenticated", error);
-      clearUser();
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchUser();
+    const fetchUser = async () => {
+      try {
+        const response = await axiosInstance.get(API_PATHS.AUTH.GET_PROFILE);
+        setUser(response.data);
+      } catch (error) {
+        console.error("User not authenticated", error);
+        clearUser();
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
+  }, []);
 
-}, []);
-
-const updateUser = (userData) => {
+  const updateUser = (userData) => {
     setUser(userData);
-localStorage.setItem("token", userData.token); //save token
-setLoading(false);  
-}
+    localStorage.setItem("token", userData.token); //save token
+    setLoading(false);
+  };
 
   const clearUser = () => {
-
     setUser(null);
     localStorage.removeItem("token");
   };
-    return (
+  return (
     <UserContext.Provider value={{ user, setUser, clearUser, loading }}>
       {children}
     </UserContext.Provider>
   );
-}
-export default UserProvider
+};
+
+export default UserProvider;
