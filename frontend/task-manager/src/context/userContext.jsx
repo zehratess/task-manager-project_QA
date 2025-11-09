@@ -1,15 +1,18 @@
 import React, { createContext, useState, useEffect } from "react";
 import axiosInstance from "../utils/axiosInstance";
-import API_PATHS from "../utils/apiPaths";
+import { API_PATHS } from "../utils/apiPaths";
 
 export const UserContext = createContext();
 
 const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // New state to track loading
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) return;
+    if (user) {
+      setLoading(false);
+      return;
+    }
 
     const accessToken = localStorage.getItem("token");
     if (!accessToken) {
@@ -29,20 +32,25 @@ const UserProvider = ({ children }) => {
       }
     };
     fetchUser();
-  }, []);
+  }, [user]);
 
   const updateUser = (userData) => {
     setUser(userData);
-    localStorage.setItem("token", userData.token); //save token
+    if (userData.token) {
+      localStorage.setItem("token", userData.token); //return
+    }
     setLoading(false);
   };
 
   const clearUser = () => {
     setUser(null);
     localStorage.removeItem("token");
+     setLoading(false); //(cl)
   };
   return (
-    <UserContext.Provider value={{ user, setUser, clearUser, loading }}>
+    <UserContext.Provider
+      value={{ user, setUser, updateUser, clearUser, loading }}
+    >
       {children}
     </UserContext.Provider>
   );
