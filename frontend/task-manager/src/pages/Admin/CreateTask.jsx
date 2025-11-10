@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
-import PRIORITY_DATA from "../../utils/data";
+import { PRIORITY_DATA } from "../../utils/data";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import toast from "react-hot-toast";
@@ -12,7 +12,8 @@ import SelectUsers from "../../components/Inputs/SelectUsers";
 import TodoListInput from "../../components/Inputs/TodoListInput";
 import AddAttachmentsInput from "../../components/Inputs/AddAttachmentsInput";
 import Modal from "../../components/Modal";
-import DeleteAlert from "../../components/DeleteAlert";
+import DeleteAlert  from "../../components/DeleteAlert";
+
 
 const CreateTask = () => {
   const location = useLocation();

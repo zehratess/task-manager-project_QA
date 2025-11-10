@@ -15,4 +15,6 @@ const DeleteAlert = ({content, onDelete}) => {
             </div>
         </div>
     )
-}
+};
+
+export default DeleteAlert;

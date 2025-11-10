@@ -13,7 +13,7 @@ import CustomPieChart from "../../components/Charts/CustomPieCharts";
 import CustomBarChart from "../../components/Charts/CustomBarChart";
 import { IoMdCard } from "react-icons/io";
 import { toast } from "react-hot-toast";
-import { UserContext } from "../../context/UserContext";
+import { UserContext } from "../../context/userContext";
 
 const COLORS = ["#8D51FF", "#00B8DB", "#7BCE00"];
 
