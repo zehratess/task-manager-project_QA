@@ -6,6 +6,9 @@ const { connect } = require("http2");
 const connectDB = require("./config/db");
 
 const authRoutes = require("./routes/authRotes")
+const userRoutes = require("./routes/userRoutes")
+const taskRoutes = require("./routes/taskRoutes")
+const reportRoutes = require("./routes/reportRoutes")
 
 const app = express();
 
@@ -25,9 +28,9 @@ app.use(express.json());
 
 // ROUTES
 app.use("/api/auth", authRoutes);
-// app.use("/api/users", userRoutes);
-// app.use("/api/tasks", taskRoutes);
-// app.use("/api/reports", reportRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/reports", reportRoutes);
 
 
 //Start Server

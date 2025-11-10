@@ -21,13 +21,12 @@ const protect = async (req, res, next) => {
 
 // Middleware for Admin-only access
 
-const adminOnly = (res,req,next) => {
-    if (req.user && req.user.role=== "admin"){
-        next();
-
-    }else{
-        res.status(403).json({message:"Access denied, admin only"});
-    }
+const adminOnly = (res, req, next) => {
+  if (req.user && req.user.role === "admin") {
+    next();
+  } else {
+    res.status(403).json({ message: "Access denied, admin only" });
+  }
 };
 
-module.exports = {protect, adminOnly};
+module.exports = { protect, adminOnly };
