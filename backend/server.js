@@ -5,7 +5,7 @@ const path = require("path");
 const { connect } = require("http2");
 const connectDB = require("./config/db");
 
-const authRoutes = require("./routes/authRotes")
+const authRoutes = require("./routes/authRoutes")
 const userRoutes = require("./routes/userRoutes")
 const taskRoutes = require("./routes/taskRoutes")
 const reportRoutes = require("./routes/reportRoutes")
