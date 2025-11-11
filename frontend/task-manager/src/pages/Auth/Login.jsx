@@ -7,12 +7,14 @@ import { API_PATHS } from "../../utils/apiPaths";
 import { validateEmail } from "../../utils/helper";
 import Input from "../../components/Inputs/Input";
 
-
-
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
+  const [email, setEmail] = useState(localStorage.getItem("loginEmail") || "");
+  const [password, setPassword] = useState(
+    localStorage.getItem("loginPassword") || ""
+  );
+  const [error, setError] = useState(
+    localStorage.getItem("loginError") || null
+  );
 
   const { updateUser } = useContext(UserContext);
   const navigate = useNavigate();
@@ -29,8 +31,14 @@ const Login = () => {
       setError("Please enter your password.");
       return;
     }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
 
-    setError("");
+    // Email ve password'ü kaydet
+    localStorage.setItem("loginEmail", email);
+    localStorage.setItem("loginPassword", password);
 
     //Login API Call
     try {
@@ -42,6 +50,12 @@ const Login = () => {
       const { token, role } = response.data;
 
       if (token) {
+        setError("");
+        // Başarılı girişte hepsini temizle
+        localStorage.removeItem("loginError");
+        localStorage.removeItem("loginEmail");
+        localStorage.removeItem("loginPassword");
+
         localStorage.setItem("token", token);
         updateUser(response.data);
 
@@ -53,11 +67,9 @@ const Login = () => {
         }
       }
     } catch (error) {
-      if (error.response && error.response.data.message) {
-        setError(error.response.data.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      const errorMsg = "Incorrect email or password.";
+      setError(errorMsg);
+      localStorage.setItem("loginError", errorMsg);
     }
   };
 
