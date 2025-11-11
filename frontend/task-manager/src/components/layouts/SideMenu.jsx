@@ -17,7 +17,7 @@ const SideMenu = ({ activeMenu }) => {
     navigate(route);
   };
   const handleLogout = () => {
-    localStorage.clear();
+    localStorage.removeItem("token");
     clearUser();
     navigate("/login");
   };
