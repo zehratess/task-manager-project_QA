@@ -4,11 +4,8 @@ const cors = require("cors");
 const path = require("path");
 const { connect } = require("http2");
 const connectDB = require("./config/db");
-<<<<<<< HEAD
 const mongoose = require('mongoose');
-=======
 
->>>>>>> 9be3c814d9c5e4b46734667772ee58674af10c23
 const authRoutes = require("./routes/authRoutes")
 const userRoutes = require("./routes/userRoutes")
 const taskRoutes = require("./routes/taskRoutes")
@@ -20,7 +17,7 @@ app.use(cors({
     origin: process.env.CLIENT_URL || "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    })
+  })
 );
 
 //connect db
@@ -38,9 +35,9 @@ app.use("/api/reports", reportRoutes);
 
 // MongoDB bağlantısı
 mongoose.connect(process.env.MONGO_URI, {
-  serverSelectionTimeoutMS: 20000,
-  socketTimeoutMS: 45000,
-})
+    serverSelectionTimeoutMS: 20000,
+    socketTimeoutMS: 45000,
+  })
   .then(() => console.log('MongoDB connected successfully'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
