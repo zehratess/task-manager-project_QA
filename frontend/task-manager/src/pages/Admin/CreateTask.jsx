@@ -230,7 +230,7 @@ const CreateTask = () => {
               <input
                 placeholder="Create App UI"
                 className="form-input"
-                value={taskData.title}
+                value={taskData.title || ""}
                 onChange={({ target }) =>
                   handleValueChange("title", target.value)
                 }
@@ -275,7 +275,7 @@ const CreateTask = () => {
                 <input
                   placeholder="Create App UI"
                   className="form-input"
-                  value={taskData.dueDate}
+                  value={taskData.dueDate || ""}
                   onChange={({ target }) =>
                     handleValueChange("dueDate", target.value)
                   }

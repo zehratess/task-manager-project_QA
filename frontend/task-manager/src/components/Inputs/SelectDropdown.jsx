@@ -1,7 +1,8 @@
-import React,{ useState } from "react";
+import React, { useState } from "react";
 import { LuChevronDown } from "react-icons/lu";
 
 const SelectDropdown = ({options, value, onChange, placeholder}) => {
+  const[isOpen, setIsOpen] = useState(false);
 
 const handleSelect = (option) => {
     onChange(option);
@@ -9,7 +10,7 @@ const handleSelect = (option) => {
 };
 
   return <div className="relative w-full">
-    {/Dropdown button/}
+    {/*Dropdown button*/}
     <button
      onClick={() => setIsOpen(!isOpen)}
      className="w-full text-sm text-black outline-none bg-white border border-slate-100 px-2.5 py-3 rounded-md mt-2 flex justify-between items-center"
@@ -17,7 +18,7 @@ const handleSelect = (option) => {
         {value ? options.find((opt) => opt.value === value)?.label : placeholder}
         <span className="ml-2">{isOpen ? <LuChevronDown classNarotate-180me="" /> : <LuChevronDown />}</span>
      </button>
-     {/dropdown menu/}
+     {/*dropdown menu*/}
      {isOpen && (
         <div className="absolute w-full bg-white border border-slate-100 rounded-md mt-1 shadow-md z-10">
             {options.map((option) => (

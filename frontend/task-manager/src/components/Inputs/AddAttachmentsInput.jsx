@@ -6,10 +6,13 @@ import { LuPaperclip } from "react-icons/lu";
 const AddAttachmentsInput = ({attachments, setAttachments}) => {
     const [option, setOption] = useState("");
 
+    const safeAttachments = Array.isArray(attachments) ? attachments : []; // eklendi
+
+
     //function to handle adding an option
     const handleAddOption = () => {
         if(option.trim()){
-            setAttachments([...attachments, option.trim()]);
+            setAttachments([...safeAttachments, option.trim()]); // attachments -> safeAttachments
             setOption("");
         }
     };
@@ -17,12 +20,13 @@ const AddAttachmentsInput = ({attachments, setAttachments}) => {
 
     //function to handle deleting an option
     const handleDeleteOption = (index) => {
-        const updatedArr = attachments.filter((_, idx) => idx !== index);
+        const updatedArr = safeAttachmentsttachments.filter((_, idx) => idx !== index);
+        setAttachments(updatedArr); // eklendi
     };
 
   return (
     <div>
-        {attachments.map((item, index) => (
+        {safeAttachments.map((item, index) => (
             <div 
              key={item}
              className="flex justify-between bg-gray-50border border-gray-100 px-3 py-2 rounded-md mb-3 mt-2"
@@ -64,6 +68,6 @@ const AddAttachmentsInput = ({attachments, setAttachments}) => {
         </div>
         </div>
   )
-}
+};
 
 export default AddAttachmentsInput

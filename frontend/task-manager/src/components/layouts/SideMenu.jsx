@@ -63,7 +63,7 @@ const SideMenu = ({ activeMenu }) => {
           } py-3 px-6 mb-3 cursor-pointer`}
           onClick={() => handleClick(item.path)}
         >
-          <item.icon className="text-xl" />
+          {item.icon && <item.icon className="text-xl" />}
           {item.label}
         </button>
       ))}

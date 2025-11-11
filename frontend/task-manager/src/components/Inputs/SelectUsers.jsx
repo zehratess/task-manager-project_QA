@@ -73,7 +73,7 @@ const SelectUsers = ({selectedUsers, setSelectedUsers}) => {
 
 
     <Modal 
-     isOpen={isModalOpen(false)}
+     isOpen={isModalOpen}
      onClose={() => setIsModalOpen(false)}
      title="Select Users"
      >
