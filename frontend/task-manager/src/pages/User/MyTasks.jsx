@@ -56,7 +56,6 @@ const MyTasks = () => {
       <div className="my-5">
         <div className="flex flex-col lg:flex-row lg:items-center justify-center">
           {" "}
-          //justify-between önerior claude
           <h2 className="text-xl md:text-xl font-medium">My Tasks</h2>
           {tabs?.[0]?.count > 0 && (
             <TaskStatusTabs
