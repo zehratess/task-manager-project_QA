@@ -55,7 +55,7 @@ const onChooseFile = () => {
             <img 
               src={previewUrl}
               alt="profile photo"
-              className="w-20 h-20 roundend-full object-cover"
+              className="w-20 h-20 rounded-full object-cover"
             />
             <button 
               type="button"

@@ -121,74 +121,37 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
-        <div>
-          <div className="card">
-            <div className="flex items-center justify-between">
-              <h5 className="font-medium">Task Distribution</h5>
-            </div>
+      eğer grid yapısı çalışmazsa claude önerisi(124-160 satırlar arasına ekle):
+{/* Chart'lar - Yan yana */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
+  <div className="card">
+    <div className="flex items-center justify-between">
+      <h5 className="font-medium">Task Distribution</h5>
+    </div>
+    <CustomPieChart data={pieChartData} colors={COLORS} />
+  </div>
 
-            <CustomPieChart data={pieChartData} colors={COLORS} />
-          </div>
-        </div>
+  <div className="card">
+    <div className="flex items-center justify-between">
+      <h5 className="font-medium">Task Priority Levels</h5>
+    </div>
+    <CustomBarChart data={barChartData} />
+  </div>
+</div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
-          <div>
-            <div className="card">
-              <div className="flex items-center justify-between">
-                <h5 className="font-medium">Task Priority Levels</h5>
-              </div>
-
-              <CustomBarChart data={barChartData} />
-            </div>
-          </div>
-
-          <div className="md:col-span-2">
-            <div className="card">
-              <div className="flex items-center justify-between">
-                <h5 className="text-lg">Recent Tasks</h5>
-
-                <button className="card-btn" onClick={onSeeMore}>
-                  See All <LuArrowRight className="text-base" />
-                </button>
-              </div>
-
-              <TaskListTable tableData={dashboardData?.recentTasks || []} />
-            </div>
-          </div>
-        </div>
-      </div>
+{/* Recent Tasks - Ayrı, tam genişlik */}
+<div className="card my-4 md:my-6">
+  <div className="flex items-center justify-between">
+    <h5 className="text-lg">Recent Tasks</h5>
+    <button className="card-btn" onClick={onSeeMore}>
+      See All <LuArrowRight className="text-base" />
+    </button>
+  </div>
+  <TaskListTable tableData={dashboardData?.recentTasks || []} />
+</div>
     </DashboardLayout>
   );
 };
 
 export default Dashboard;
 
-//eğer grid yapısı çalışmazsa claude önerisi(124-160 satırlar arasına ekle):
-// {/* Chart'lar - Yan yana */}
-// <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
-//   <div className="card">
-//     <div className="flex items-center justify-between">
-//       <h5 className="font-medium">Task Distribution</h5>
-//     </div>
-//     <CustomPieChart data={pieChartData} colors={COLORS} />
-//   </div>
-
-//   <div className="card">
-//     <div className="flex items-center justify-between">
-//       <h5 className="font-medium">Task Priority Levels</h5>
-//     </div>
-//     <CustomBarChart data={barChartData} />
-//   </div>
-// </div>
-
-// {/* Recent Tasks - Ayrı, tam genişlik */}
-// <div className="card my-4 md:my-6">
-//   <div className="flex items-center justify-between">
-//     <h5 className="text-lg">Recent Tasks</h5>
-//     <button className="card-btn" onClick={onSeeMore}>
-//       See All <LuArrowRight className="text-base" />
-//     </button>
-//   </div>
-//   <TaskListTable tableData={dashboardData?.recentTasks || []} />
-// </div>
