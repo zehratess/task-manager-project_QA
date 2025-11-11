@@ -17,6 +17,7 @@ const UserProvider = ({ children }) => {
     const accessToken = localStorage.getItem("token");
     if (!accessToken) {
       setLoading(false);
+      setUser(null);
       return;
     }
 
@@ -31,8 +32,10 @@ const UserProvider = ({ children }) => {
         setLoading(false);
       }
     };
+
     fetchUser();
-  }, [user]);
+
+  }, []);
 
   const updateUser = (userData) => {
     setUser(userData);
