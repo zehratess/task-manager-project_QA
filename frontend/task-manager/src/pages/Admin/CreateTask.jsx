@@ -214,7 +214,7 @@ const CreateTask = () => {
 
               {taskId && (
                 <button
-                  className="flex items-center gap-1.5 text-[13px] font-medium text-rose-500 bg-rose-500 rounded px-2 py-1 border border-rose-100 hover:border-rose-300 cursor-pointer" //className="... text-rose-500 bg-rose-50 ..."   // ✅ Açık arkaplan // veya className="... text-white bg-rose-500 ..."     // ✅ Beyaz text
+                  className="flex items-center gap-1.5 text-[13px] font-medium text-white bg-rose-500 rounded px-2 py-1 border border-rose-100 hover:border-rose-300 cursor-pointer" //className="... text-rose-500 bg-rose-50 ..."   // ✅ Açık arkaplan // veya className="... text-white bg-rose-500 ..."     // ✅ Beyaz text
                   onClick={() => setOpenDeleteAlert(true)}
                 >
                   <LuTrash2 className="text-base" /> Delete
