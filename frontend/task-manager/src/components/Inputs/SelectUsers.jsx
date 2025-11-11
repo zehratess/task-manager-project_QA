@@ -1,8 +1,9 @@
- import React, { use, useEffect, useState } from "react";
+ import React, { useEffect, useState } from "react";
 import { API_PATHS } from "../../utils/apiPaths";
 import axiosInstance from "../../utils/axiosInstance";
 import { LuUsers } from "react-icons/lu";
 import Modal from "../Modal";
+import AvatarGroup from "../AvatarGroup";
 
 
 const SelectUsers = ({selectedUsers, setSelectedUsers}) => {
@@ -24,9 +25,9 @@ const SelectUsers = ({selectedUsers, setSelectedUsers}) => {
    const toggleUserSelection = (userId) => {
     setTempSelectedUsers((prev) =>
         prev.includes(userId)
-    ? prev.filter((id) => id !== userId)
-    : [...prev, userId]
-);
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId]
+    );
  };
 
  const handleAssign = () => {
@@ -48,9 +49,7 @@ const SelectUsers = ({selectedUsers, setSelectedUsers}) => {
             setTempSelectedUsers([]);
         }
 
-         return () => {};
-
-     },[selectedUsers]);
+     }, [selectedUsers]);
 
   return (
     <div className="space-y-4 mt-2">

@@ -19,10 +19,10 @@ axiosInstance.interceptors.request.use(
         }
         return config;
     },
-        (error) => {
-            return Promise.reject(error);
-        }
-    );
+    (error) => {
+        return Promise.reject(error);
+    }
+);
 
 // response interceptor
 axiosInstance.interceptors.response.use(

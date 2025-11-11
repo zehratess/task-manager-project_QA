@@ -121,7 +121,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      eğer grid yapısı çalışmazsa claude önerisi(124-160 satırlar arasına ekle):
+      {/*eğer grid yapısı çalışmazsa claude önerisi(124-160 satırlar arasına ekle):*/}
 {/* Chart'lar - Yan yana */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
   <div className="card">
