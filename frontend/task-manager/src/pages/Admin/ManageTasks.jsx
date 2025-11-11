@@ -43,7 +43,7 @@ const ManageTasks = () => {
   };
 
   const handleClick = (taskData) => {
-    navigate(`/admin/create-task`, { state: { taskId: taskData } });
+    navigate(`/admin/create-task`, { state: { taskId: taskData._id } });
   };
 
   // download task report
