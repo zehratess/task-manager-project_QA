@@ -5,17 +5,13 @@ import { UserContext } from "../../context/userContext";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import { validateEmail } from "../../utils/helper";
-import  uploadImage from "../../utils/uploadImage";
-import ProfilePhotoSelector from "../../components/Inputs/ProfilePhotoSelector";
 import Input from "../../components/Inputs/Input";
 
 const SignUp = () => {
-  const [profilePic, setProfilePic] = useState(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [adminInviteToken, setAdminInviteToken] = useState("");
-
   const [error, setError] = useState(null);
 
   const { updateUser } = useContext(UserContext);
@@ -25,8 +21,7 @@ const SignUp = () => {
   const handleSignUp = async (e) => {
     e.preventDefault();
 
-    let profileImageUrl = "";
-
+    // Validation
     if (!fullName) {
       setError("Please enter name.");
       return;
@@ -36,7 +31,7 @@ const SignUp = () => {
       setError("Please enter a valid email address.");
       return;
     }
-    
+
     if (!password) {
       setError("Please enter the password.");
       return;
@@ -47,22 +42,13 @@ const SignUp = () => {
       return;
     }
 
+    setError(null);
 
-    setError("");
-
-    //SignUp API Call
     try {
-      // Upload profile picture if exists
-      if (profilePic) {
-        const imgUploadRes = await uploadImage(profilePic);
-        profileImageUrl = imgUploadRes.imageUrl || "";
-      }
-
       const response = await axiosInstance.post(API_PATHS.AUTH.REGISTER, {
         name: fullName,
         email,
         password,
-        profileImageUrl,
         adminInviteToken,
       });
 
@@ -72,16 +58,16 @@ const SignUp = () => {
         localStorage.setItem("token", token);
         updateUser(response.data);
 
-        //Redirect based on role
+        // Redirect based on role
         if (role === "admin") {
           navigate("/admin/dashboard");
         } else {
           navigate("/user/dashboard");
         }
       }
-    } catch (error) {
-      if (error.response && error.response.data.message) {
-        setError(error.response.data.message);
+    } catch (err) {
+      if (err.response && err.response.data?.message) {
+        setError(err.response.data.message);
       } else {
         setError("Something went wrong. Please try again.");
       }
@@ -90,54 +76,61 @@ const SignUp = () => {
 
   return (
     <AuthLayout>
-      <div className="lg:w-[100%] h-auto md:h-full mt-10 md:mt-0 flex flex-col justify-center">
+      <div className="lg:w-full h-auto md:h-full mt-10 md:mt-0 flex flex-col justify-center">
         <h3 className="text-xl font-semibold text-black">Create an Account</h3>
-        <p className="text-xs text-slate-700 mt-[5px] mb-6">
+        <p className="text-xs text-slate-700 mt-1 mb-6">
           Join us today by entering your details below.
         </p>
 
         <form onSubmit={handleSignUp}>
-          <ProfilePhotoSelector image={profilePic} setImage={setProfilePic} />
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
               label="Full Name"
               type="text"
-              placeholder="John Doe"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Ayşenur Yılmaz"
             />
+
             <Input
               label="Email Address"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              type="text"
-              placeholder="john@example.com"
+              placeholder="aysenur@example.com"
             />
+
             <Input
               label="Password"
+              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              type="password"
               placeholder="Min 8 characters"
             />
+
             <Input
               label="Admin Invite Token (Optional)"
+              type="text"
               value={adminInviteToken}
               onChange={(e) => setAdminInviteToken(e.target.value)}
-              type="text"
               placeholder="6 Digit Code"
             />
           </div>
-          {error && <p className="text-red-500 text-xs pb-2.5">{error}</p>}
 
-          <button type="submit" className="btn-primary">
+          {error && (
+            <p className="text-red-500 text-xs mt-2 mb-2">{error}</p>
+          )}
+
+          <button type="submit" className="btn-primary w-full mt-2">
             Sign Up
           </button>
 
           <p className="text-[13px] text-slate-800 mt-3">
             Already have an account?{" "}
-            <Link className="font-medium text-primary underline" to="/login">
+            <Link
+              className="font-medium text-primary underline"
+              to="/login"
+            >
               Log In
             </Link>
           </p>
