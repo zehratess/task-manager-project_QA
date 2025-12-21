@@ -16,16 +16,19 @@ import PrivateRoute from './routes/PrivateRoute';
 import UserProvider, { UserContext } from './context/userContext';
 import { Toaster } from 'react-hot-toast';
 import { useContext } from "react";
+import bgImage from './assets/images/bg.png';
 
 const App = () => {
   return (
     <UserProvider>
-    <div>
       <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signUp" element={<SignUp />} />
+        <Routes>
+          {/* Auth Routes - Kendi arkaplanları var */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signUp" element={<SignUp />} />
 
+          {/* Dashboard Routes - Arkaplan wrapper'ı */}
+          <Route element={<DashboardWrapper />}>
             {/*Admin Routes*/}
             <Route element={<PrivateRoute allowedRoles={["admin"]} />}>
               <Route path="/admin/dashboard" element={<Dashboard />} />
@@ -44,26 +47,44 @@ const App = () => {
             <Route element={<PrivateRoute allowedRoles={["admin", "user"]} />}>
               <Route path="/create-task" element={<CreateTask />} />
             </Route>
+          </Route>
 
-            {/* Default Route */}
-            <Route path="/" element={<Root />} />
-          </Routes>
+          {/* Default Route */}
+          <Route path="/" element={<Root />} />
+        </Routes>
       </Router>
-    </div>
     
-    <Toaster 
-      toastOptions={{
-        className: '',
-        style: {
-          fontSize: '13px',
-        },
-      }}
-    />
+      <Toaster 
+        toastOptions={{
+          className: '',
+          style: {
+            fontSize: '13px',
+          },
+        }}
+      />
     </UserProvider>
   );
 };
 
 export default App;
+
+// Dashboard Wrapper - Arkaplan sadece dashboard sayfalarında
+const DashboardWrapper = () => {
+  return (
+    <div 
+      style={{
+        backgroundImage: `url(${bgImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+        minHeight: '100vh'
+      }}
+    >
+      <Outlet />
+    </div>
+  );
+};
 
 const Root = () => {
   const { user, loading } = useContext(UserContext);

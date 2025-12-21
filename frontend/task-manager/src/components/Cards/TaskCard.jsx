@@ -22,42 +22,42 @@ const TaskCard = ({
     const getStatusTagColor = () => {
         switch (status) {
             case "In Progress":
-                return "text-cyan-500 bg-cyan-50 border border-cyan-500/10";
+                return "text-sky-600 bg-sky-50/80 border border-sky-300/30";
 
             case "Completed":
-                return "text-lime-500 bg-lime-50 border border-lime-500/20";
+                return "text-emerald-600 bg-emerald-50/80 border border-emerald-300/30";
 
             default:
-                return "text-violet-500 bg-violet-50 border border-violet-500/10";
+                return "text-purple-600 bg-purple-50/80 border border-purple-300/30";
         }
     };
 
     const getPriorityTagColor = () => {
         switch (priority) {
             case "Low":
-                return "text-emerald-500 bg-emerald-50 border border-emerald-500/10";
+                return "text-teal-600 bg-teal-50/80 border border-teal-300/30";
 
             case "Medium":
-                return "text-amber-500 bg-amber-50 border border-amber-500/10";
+                return "text-amber-600 bg-amber-50/80 border border-amber-300/30";
 
             default:
-                return "text-rose-500 bg-rose-50 border border-rose-500/10";
+                return "text-rose-600 bg-rose-50/80 border border-rose-300/30";
         }
     };
 
     return (
         <div 
-            className="bg-white rounded-xl py-4 shadow-md shadow-gray-100 border border-gray-200/50 cursor-pointer"
+            className="bg-white/75 backdrop-blur-md rounded-xl py-4 shadow-lg shadow-slate-200/50 border border-slate-200/40 cursor-pointer hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300"
             onClick={onClick}
         >
             <div className="flex items-end gap-3 px-4">
                 <div 
-                    className={`text-[11px] font-medium ${getStatusTagColor()} px-4 py-0.5 rounded`}
+                    className={`text-[11px] font-medium ${getStatusTagColor()} px-4 py-0.5 rounded-full`}
                 >
                     {status}
                 </div>
                 <div 
-                    className={`text-[11px] font-medium ${getPriorityTagColor()} px-4 py-0.5 rounded`}
+                    className={`text-[11px] font-medium ${getPriorityTagColor()} px-4 py-0.5 rounded-full`}
                 >
                     {priority} Priority
                 </div>
@@ -66,10 +66,10 @@ const TaskCard = ({
             <div 
                 className={`px-4 border-l-[3px] ${
                     status === "In Progress"
-                    ? "border-cyan-500"
+                    ? "border-sky-400"
                     : status === "Completed"
-                    ? "border-indigo-500"
-                    : "border-violet-500"
+                    ? "border-emerald-400"
+                    : "border-purple-400"
                 }`}
             >
                 <p className="text-sm font-medium text-gray-800 mt-4 line-clamp-2">
@@ -113,8 +113,8 @@ const TaskCard = ({
                     <AvatarGroup avatars={assignedTo || []} />
 
                     {attachmentCount > 0 && (
-                        <div className="flex items-center gap-2 bg-blue-50 px-2.5 py-1.5 rounded-lg">
-                            <LuPaperclip className="text-primary" />
+                        <div className="flex items-center gap-2 bg-indigo-50/80 px-2.5 py-1.5 rounded-lg border border-indigo-200/50">
+                            <LuPaperclip className="text-indigo-600" />
                             <span className="text-xs text-gray-900">{attachmentCount}</span>
                         </div>
                     )}

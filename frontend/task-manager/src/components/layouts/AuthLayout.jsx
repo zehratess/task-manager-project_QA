@@ -1,15 +1,27 @@
 import React from "react";
+import bgImage from "../../assets/images/bg.png";
 
 const AuthLayout = ({children})=> {
-    return <div className="flex">
-        <div className="w-screen h-screen md:w-[60vw] px-12 pt-8 pb-12">
-            <h2 className="text-4xl font-medium text-black">GOINON</h2>
-            {children}
+    return (
+        <div 
+            className="min-h-screen w-full relative flex items-center justify-center px-4"
+            style={{
+                backgroundImage: `url(${bgImage})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center center',
+                backgroundRepeat: 'no-repeat',
+                imageRendering: '-webkit-optimize-contrast',
+                transform: 'translateZ(0)',
+                willChange: 'transform'
+            }}
+        >
+            {/* Login/SignUp Form Container */}
+            <div className="relative z-10 w-full max-w-2xl bg-white/10 backdrop-blur-md rounded-3xl shadow-2xl border border-white/50 p-8 md:p-12">
+                <h2 className="text-4xl font-medium text-black mb-8">GOINON</h2>
+                {children}
+            </div>
         </div>
-        
-    <div className="hidden md:flex w-[40vw] h-screen bg-blue-50 bg-[url('/bg-img.png')] bg-cover bg-no-repeat bg-center overflow-hidden">
-    <img src={UI_IMG} className="w-full h-full object-cover"></img>
-    </div>
-    </div>
+    );
 };
-export default AuthLayout
+
+export default AuthLayout;

@@ -15,22 +15,23 @@ const CustomBarChart = ({ data }) => {
   const getBarColor = (entry) => {
     switch (entry?.priority) {
       case "Low":
-        return "#00BC7D";
+        return "#14b8a6"; // teal-500 - Soft yeşil
 
       case "Medium":
-        return "#FE9900";
+        return "#f59e0b"; // amber-500 - Soft sarı
 
       case "High":
-        return "#FF1F57";
+        return "#f43f5e"; // rose-500 - Soft kırmızı
       default:
-        return "#00BC7D";
+        return "#14b8a6";
     }
   };
+
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white shadow-md rounded-lg p-2 border border-gray-300">
-          <p className="text-xs font-semibold text-purple-800 mb-1">
+        <div className="bg-white/90 backdrop-blur-sm shadow-lg rounded-lg p-3 border border-slate-200/50">
+          <p className="text-xs font-semibold text-indigo-600 mb-1">
             {payload[0].payload.priority}
           </p>
           <p className="text-sm text-gray-600">
@@ -44,35 +45,40 @@ const CustomBarChart = ({ data }) => {
     }
     return null;
   };
+
   return (
-    <div className="bg-white mt-6">
+    <div className="mt-4">
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
-          <CartesianGrid stroke="none" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.3} />
 
           <XAxis
             dataKey="priority"
-            tick={{ fontSize: 12, fill: "#555" }}
-            stroke="none"
+            tick={{ fontSize: 12, fill: "#64748b" }}
+            stroke="#cbd5e1"
           />
 
-          <YAxis tick={{ fontSize: 12, fill: "#555" }} stroke="none" />
+          <YAxis 
+            tick={{ fontSize: 12, fill: "#64748b" }} 
+            stroke="#cbd5e1"
+          />
 
           <Tooltip
             content={<CustomTooltip />}
-            cursor={{ fill: "transparent" }}
+            cursor={{ fill: "rgba(99, 102, 241, 0.1)" }}
           />
 
           <Bar
             dataKey="count"
             nameKey="priority"
-            fill="#FF8042"
             radius={[10, 10, 0, 0]}
-            activeDot={{ r: 8, fill: "yellow" }}
-            activeStyle={{ fill: "green" }}
           >
             {data.map((entry, index) => (
-              <Cell key={index} fill={getBarColor(entry)} />
+              <Cell 
+                key={index} 
+                fill={getBarColor(entry)}
+                opacity={0.85}
+              />
             ))}
           </Bar>
         </BarChart>
@@ -80,4 +86,5 @@ const CustomBarChart = ({ data }) => {
     </div>
   );
 };
+
 export default CustomBarChart;

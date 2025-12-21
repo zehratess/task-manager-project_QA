@@ -4,7 +4,7 @@
 @theme {
   --font-display: "Poppins", "sans-serif";
   --breakpoint-3xl: 1920px;
-  --color-primary: #1368EC;
+  --color-primary: #6366f1;
 }
 
 @layer base {
@@ -13,46 +13,52 @@
   }
 
   body {
-    background-color: #fcfbfc;
+    background-image: url('../assets/images/bg.jpg');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
     overflow-x: hidden;
   }
 }
+
 .input-box {
-  @apply w-full justify-between gap-3 text-sm text-black bg-slate-100/50 rounded px-4 py-3 mb-4 mt-3 border border-slate-200 outline-none;
+  @apply w-full justify-between gap-3 text-sm text-slate-700 bg-white/60 backdrop-blur-sm rounded-xl px-4 py-3 mb-4 mt-3 border border-slate-200/60 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:bg-white/80 transition-all duration-200;
 }
 
 .btn-primary {
-  @apply w-full text-sm font-medium text-white bg-primary shadow-lg shadow-purple-600/5 p-[10px] rounded-md my-1 hover:bg-blue-600/15 hover:text-blue-600 cursor-pointer;
+  @apply w-full text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/25 p-[10px] rounded-xl my-1 hover:from-indigo-600 hover:to-purple-600 hover:shadow-xl hover:shadow-indigo-500/30 cursor-pointer transition-all duration-300;
 }
 
 .card {
-  @apply bg-white  p-6 rounded-2xl shadow-md shadow-gray-100 border-gray-200/50;   
+  @apply bg-white/70 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/40 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300;   
 }
 
 .card-btn {
-  @apply flex items-center gap-3 text-[12px] font-medium text-gray-700 hover:text-primary bg-gray-50 hover:bg-blue-50 px-4 py-1.5 rounded-lg border border-gray-200/50 cursor-pointer;
+  @apply flex items-center gap-3 text-[12px] font-medium text-slate-600 hover:text-indigo-600 bg-slate-50/80 hover:bg-indigo-50/80 px-4 py-1.5 rounded-lg border border-slate-200/50 hover:border-indigo-200 cursor-pointer transition-all duration-200;
 }
 
 .card-btn-fill {
-  @apply flex items-center gap-3 text-[12px] font-medium text-white hover:text-primary bg-primary hover:bg-blue-50 px-4 py-1.5 rounded-lg border border-primary cursor-pointer;
+  @apply flex items-center gap-3 text-[12px] font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 px-4 py-1.5 rounded-lg border-0 shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/30 cursor-pointer transition-all duration-200;
 }
  
 .form-card {
-  @apply bg-white p-6 rounded-lg shadow-md shadow-gray-100 border border-gray-200/50;
+  @apply bg-white/75 backdrop-blur-md p-6 rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/40;
 }
 
 .form-input {
-  @apply w-full text-sm text-black outline-none bg-white border border-slate-100 px-2.5 py-3 rounded-md mt-2 placeholder:text-gray-500;
+  @apply w-full text-sm text-slate-700 outline-none bg-white/60 backdrop-blur-sm border border-slate-200/60 px-3 py-3 rounded-xl mt-2 placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 focus:bg-white/80 transition-all duration-200;
 }
 
 .add-btn {
-  @apply w-full flex items-center justify-center gap-1.5 text-xs md:text-sm font-medium text-primary whitespace-nowrap bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 cursor-pointer;
+  @apply w-full flex items-center justify-center gap-1.5 text-xs md:text-sm font-medium text-indigo-600 whitespace-nowrap bg-indigo-50/80 border border-indigo-200/60 hover:bg-indigo-100/80 hover:border-indigo-300 rounded-xl px-4 py-2 cursor-pointer transition-all duration-200;
 }
 
 .download-btn {
-  @apply items-center gap-3 text-xs md:text-[13px] text-lime-900 bg-lime-100 px-2 md:px-3 py-2 rounded border border-lime-200 hover:border-lime-400 cursor-pointer;
+  @apply items-center gap-3 text-xs md:text-[13px] text-emerald-700 bg-emerald-50/80 px-2 md:px-3 py-2 rounded-xl border border-emerald-200/60 hover:border-emerald-300 hover:bg-emerald-100/80 cursor-pointer transition-all duration-200;
 }
 
 .user-card {
-  @apply bg-white p-4 rounded-xl shadow-md shadow-gray-100 border border-gray-200/50;
+  @apply bg-white/70 backdrop-blur-md p-4 rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/40 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-300;
 }
