@@ -1,3 +1,5 @@
+import { useContext } from "react"; // en üste ekle
+import { UserContext } from "../../context/userContext";
 import React, { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
 import { PRIORITY_DATA } from "../../utils/data";
@@ -12,8 +14,7 @@ import SelectUsers from "../../components/Inputs/SelectUsers";
 import TodoListInput from "../../components/Inputs/TodoListInput";
 import AddAttachmentsInput from "../../components/Inputs/AddAttachmentsInput";
 import Modal from "../../components/Modal";
-import DeleteAlert  from "../../components/DeleteAlert";
-
+import DeleteAlert from "../../components/DeleteAlert";
 
 const CreateTask = () => {
   const location = useLocation();
@@ -32,6 +33,7 @@ const CreateTask = () => {
 
   const [currentTask, setCurrentTask] = useState(null);
 
+  const { user } = useContext(UserContext);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -65,8 +67,13 @@ const CreateTask = () => {
         completed: false,
       }));
 
+      // User için otomatik kendine ata
+      const assignedToData =
+        user?.role === "admin" ? taskData.assignedTo : [user._id];
+
       const response = await axiosInstance.post(API_PATHS.TASKS.CREATE_TASK, {
         ...taskData,
+        assignedTo: assignedToData,
         dueDate: new Date(taskData.dueDate).toISOString(),
         todoChecklist: todoList,
       });
@@ -74,12 +81,13 @@ const CreateTask = () => {
       clearData();
     } catch (error) {
       console.error("Error creating task:", error);
-      toast.error("Failed to create task");
+      toast.error(error.response?.data?.message || "Failed to create task");
     } finally {
       setLoading(false);
     }
   };
 
+  // Update Task
   // Update Task
   const updateTask = async () => {
     setLoading(true);
@@ -97,10 +105,15 @@ const CreateTask = () => {
         };
       });
 
+      // ✅ User için assignedTo'yu koruma
+      const assignedToData =
+        user?.role === "admin" ? taskData.assignedTo : [user._id];
+
       const response = await axiosInstance.put(
         API_PATHS.TASKS.UPDATE_TASK(taskId),
         {
           ...taskData,
+          assignedTo: assignedToData,
           dueDate: new Date(taskData.dueDate).toISOString(),
           todoChecklist: todoList,
         }
@@ -108,12 +121,11 @@ const CreateTask = () => {
       toast.success("Task updated successfully!");
     } catch (error) {
       console.error("Error updating task:", error);
-      toast.error("Failed to update task");
+      toast.error(error.response?.data?.message || "Failed to update task");
     } finally {
       setLoading(false);
     }
   };
-
   const handleSubmit = async () => {
     setError(null);
 
@@ -133,7 +145,8 @@ const CreateTask = () => {
       return;
     }
 
-    if (taskData.assignedTo?.length === 0) {
+    // ✅ Admin için assignedTo kontrolü, user için gerek yok
+    if (user?.role === "admin" && taskData.assignedTo?.length === 0) {
       setError("Task not assigned to any member");
       return;
     }
@@ -212,14 +225,18 @@ const CreateTask = () => {
                 {taskId ? "Update Task" : "Create Task"}
               </h2>
 
-              {taskId && (
-                <button
-                  className="flex items-center gap-1.5 text-[13px] font-medium text-white bg-rose-500 rounded px-2 py-1 border border-rose-100 hover:border-rose-300 cursor-pointer" //className="... text-rose-500 bg-rose-50 ..."   // ✅ Açık arkaplan // veya className="... text-white bg-rose-500 ..."     // ✅ Beyaz text
-                  onClick={() => setOpenDeleteAlert(true)}
-                >
-                  <LuTrash2 className="text-base" /> Delete
-                </button>
-              )}
+              {taskId &&
+                currentTask &&
+                // Admin tümünü silebilir, user sadece kendi oluşturduğunu
+                (user?.role === "admin" ||
+                  currentTask.createdBy === user?._id) && (
+                  <button
+                    className="flex items-center gap-1.5 text-[13px] font-medium text-white bg-rose-500 rounded px-2 py-1 border border-rose-100 hover:border-rose-300 cursor-pointer"
+                    onClick={() => setOpenDeleteAlert(true)}
+                  >
+                    <LuTrash2 className="text-base" /> Delete
+                  </button>
+                )}
             </div>
 
             <div className="mt-4">
@@ -283,18 +300,21 @@ const CreateTask = () => {
                 />
               </div>
 
-              <div className="col-span-12 md:col-span-3">
-                <label className="text-xs font-medium text-slate-600">
-                  Assign To
-                </label>
+              {/* ✅ Sadece admin görebilir */}
+              {user?.role === "admin" && (
+                <div className="col-span-12 md:col-span-3">
+                  <label className="text-xs font-medium text-slate-600">
+                    Assign To
+                  </label>
 
-                <SelectUsers
-                  selectedUsers={taskData.assignedTo}
-                  setSelectedUsers={(value) => {
-                    handleValueChange("assignedTo", value);
-                  }}
-                />
-              </div>
+                  <SelectUsers
+                    selectedUsers={taskData.assignedTo}
+                    setSelectedUsers={(value) => {
+                      handleValueChange("assignedTo", value);
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="mt-3">

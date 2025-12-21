@@ -30,16 +30,21 @@ const App = () => {
             <Route element={<PrivateRoute allowedRoles={["admin"]} />}>
               <Route path="/admin/dashboard" element={<Dashboard />} />
               <Route path="/admin/tasks" element={<ManageTasks />} />
-              <Route path="/admin/create-task" element={<CreateTask />} />
               <Route path="/admin/users" element={<ManageUsers />} />
             </Route>
 
             {/*User Routes*/}
-            <Route element={<PrivateRoute allowedRoles={["admin"]} />}>
+            <Route element={<PrivateRoute allowedRoles={["user"]} />}>
               <Route path="/user/dashboard" element={<UserDashboard />} />
               <Route path="/user/tasks" element={<MyTasks />} />
               <Route path="/user/task-details/:id" element={<ViewTaskDetails />} />
             </Route>
+
+            {/* ✅ Ortak Route - Hem admin hem user erişebilir */}
+            <Route element={<PrivateRoute allowedRoles={["admin", "user"]} />}>
+              <Route path="/create-task" element={<CreateTask />} />
+            </Route>
+
             {/* Default Route */}
             <Route path="/" element={<Root />} />
           </Routes>
@@ -61,7 +66,7 @@ const App = () => {
 export default App;
 
 const Root = () => {
-  const { user, loading } = useContext (UserContext);
+  const { user, loading } = useContext(UserContext);
 
   if (loading) return <Outlet />;
 

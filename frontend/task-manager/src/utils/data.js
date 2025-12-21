@@ -23,7 +23,7 @@ export const SIDE_MENU_DATA = [
         id: "03",
         label: "Create Task",
         icon: LuSquarePlus,
-        path: "/admin/create-task",
+        path: "/create-task", // ✅ Ortak route
     },
     {
         id: "04",
@@ -53,7 +53,13 @@ export const SIDE_MENU_USER_DATA = [
         path: "/user/tasks",
     },
     {
-        id: "05",
+        id: "03", // ✅ Create Task eklendi
+        label: "Create Task",
+        icon: LuSquarePlus,
+        path: "/create-task", // ✅ Ortak route
+    },
+    {
+        id: "04", // ✅ ID güncellendi
         label: "Logout",
         icon: LuLogOut,
         path: "logout",

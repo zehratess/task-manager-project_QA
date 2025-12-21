@@ -1,66 +1,51 @@
 const Task = require("../models/Task");
-
-//@desc get all tasks (admin: all, user: assigned)
+//@desc get all tasks (everyone sees: assigned to them OR created by them)
 //@route GET /api/tasks
 //@access private
 const getTasks = async (req, res) => {
   try {
     const { status } = req.query;
-    let filter = {};
+    
+    // ✅ Base filter
+    let baseFilter = {
+      $or: [
+        { createdBy: req.user._id },
+        { assignedTo: req.user._id }
+      ]
+    };
 
+    // ✅ Status filter varsa ekle
     if (status) {
-      filter.status = status;
+      baseFilter.status = status;
     }
 
-    let tasks;
-
-    if (req.user.role === "admin") {
-      tasks = await Task.find(filter).populate(
-        "assignedTo",
-        "name email profileImageUrl"
-      );
-    } else {
-      tasks = await Task.find({ ...filter, assignedTo: req.user._id }).populate(
-        "assignedTo",
-        "name email profileImageUrl"
-      );
-    }
+    const tasks = await Task.find(baseFilter)
+      .populate("assignedTo", "name email profileImageUrl")
+      .sort({ createdAt: -1 }); // ✅ En yeniler önce
 
     // Add completed todoChecklist count to each task
-    tasks = await Promise.all(
-      tasks.map(async (task) => {
-        const completedCount = task.todoChecklist.filter(
-          (item) => item.completed
-        ).length;
-        return { ...task._doc, completedTodoCount: completedCount };
-      })
-    );
+    const tasksWithCounts = tasks.map((task) => {
+      const completedCount = task.todoChecklist.filter(
+        (item) => item.completed
+      ).length;
+      return { ...task._doc, completedTodoCount: completedCount };
+    });
 
     // Status summary counts
-    const allTasks = await Task.countDocuments(
-      req.user.role === "admin" ? {} : { assignedTo: req.user._id }
-    );
+    const userFilter = {
+      $or: [
+        { createdBy: req.user._id },
+        { assignedTo: req.user._id }
+      ]
+    };
 
-    const pendingTasks = await Task.countDocuments({
-      ...filter,
-      status: "Pending",
-      ...(req.user.role !== "admin" && { assignedTo: req.user._id }),
-    });
-
-    const inProgressTasks = await Task.countDocuments({
-      ...filter,
-      status: "In Progress",
-      ...(req.user.role !== "admin" && { assignedTo: req.user._id }),
-    });
-
-    const completedTasks = await Task.countDocuments({
-      ...filter,
-      status: "Completed",
-      ...(req.user.role !== "admin" && { assignedTo: req.user._id }),
-    });
+    const allTasks = await Task.countDocuments(userFilter);
+    const pendingTasks = await Task.countDocuments({ ...userFilter, status: "Pending" });
+    const inProgressTasks = await Task.countDocuments({ ...userFilter, status: "In Progress" });
+    const completedTasks = await Task.countDocuments({ ...userFilter, status: "Completed" });
 
     res.json({
-      tasks,
+      tasks: tasksWithCounts,
       statusSummary: {
         all: allTasks,
         pendingTasks,
@@ -69,6 +54,7 @@ const getTasks = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("getTasks error:", error); // ✅ Error log
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -85,6 +71,18 @@ const getTaskById = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
+    // Admin tümünü görebilir, user sadece kendi oluşturduğu veya kendine atananı
+    if (req.user.role !== "admin") {
+      const isCreator = task.createdBy.toString() === req.user._id.toString();
+      const isAssigned = task.assignedTo.some(
+        (userId) => userId._id.toString() === req.user._id.toString()
+      );
+
+      if (!isCreator && !isAssigned) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+    }
+
     res.json(task);
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
@@ -94,6 +92,12 @@ const getTaskById = async (req, res) => {
 //@desc create a new task (admin only)
 //@route POST /api/tasks
 //@access private (admin)
+//@desc create a new task
+//@route POST /api/tasks
+//@access private
+//@desc create a new task
+//@route POST /api/tasks
+//@access private
 const createTask = async (req, res) => {
   try {
     const {
@@ -105,10 +109,36 @@ const createTask = async (req, res) => {
       attachments,
       todoChecklist,
     } = req.body;
+
+    // User rolü için kısıtlama
+    if (req.user.role !== "admin") {
+      // ✅ DÜZELTME: String karşılaştırması yerine sadece array ve length kontrolü
+      if (!Array.isArray(assignedTo) || assignedTo.length !== 1) {
+        return res.status(403).json({ 
+          message: "You can only create tasks assigned to yourself" 
+        });
+      }
+      
+      // ✅ assignedTo'yu kullanıcının kendi ID'si ile değiştir
+      const task = await Task.create({
+        title,
+        description,
+        priority,
+        dueDate,
+        assignedTo: [req.user._id], // Backend'de zorla user'ın kendi ID'si
+        createdBy: req.user._id,
+        attachments,
+        todoChecklist,
+      });
+
+      return res.status(201).json({ message: "Task created successfully", task });
+    }
+
+    // Admin için normal flow
     if (!Array.isArray(assignedTo)) {
-      return res
-        .status(400)
-        .json({ message: "assignedTo must be an array of user IDs" });
+      return res.status(400).json({ 
+        message: "assignedTo must be an array of user IDs" 
+      });
     }
 
     const task = await Task.create({
@@ -122,7 +152,7 @@ const createTask = async (req, res) => {
       todoChecklist,
     });
 
-    res.status(201).json({ message: "Task created succesfully", task });
+    res.status(201).json({ message: "Task created successfully", task });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -137,6 +167,29 @@ const updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
+    // Admin tümünü güncelleyebilir, user sadece kendi oluşturduğunu veya kendine atananı
+    if (req.user.role !== "admin") {
+      const isCreator = task.createdBy.toString() === req.user._id.toString();
+      const isAssigned = task.assignedTo.some(
+        (userId) => userId.toString() === req.user._id.toString()
+      );
+
+      if (!isCreator && !isAssigned) {
+        return res.status(403).json({ message: "Not authorized to update this task" });
+      }
+
+      // User sadece kendine atayabilir
+      if (req.body.assignedTo) {
+        if (!Array.isArray(req.body.assignedTo) || 
+            req.body.assignedTo.length !== 1 || 
+            req.body.assignedTo[0] !== req.user._id.toString()) {
+          return res.status(403).json({ 
+            message: "You can only assign tasks to yourself" 
+          });
+        }
+      }
+    }
+
     task.title = req.body.title || task.title;
     task.description = req.body.description || task.description;
     task.priority = req.body.priority || task.priority;
@@ -146,15 +199,15 @@ const updateTask = async (req, res) => {
 
     if (req.body.assignedTo) {
       if (!Array.isArray(req.body.assignedTo)) {
-        return res
-          .status(400)
-          .json({ message: "assignedTo must be an array of user IDs" });
+        return res.status(400).json({ 
+          message: "assignedTo must be an array of user IDs" 
+        });
       }
       task.assignedTo = req.body.assignedTo;
     }
 
     const updatedTask = await task.save();
-    res.json({ message: "Task updated successfully", updateTask });
+    res.json({ message: "Task updated successfully", task: updatedTask });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -168,6 +221,13 @@ const deleteTask = async (req, res) => {
     const task = await Task.findById(req.params.id);
 
     if (!task) return res.status(404).json({ message: "Task not found" });
+
+    // Admin tümünü silebilir, user sadece kendi oluşturduğunu
+    if (req.user.role !== "admin" && task.createdBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ 
+        message: "You can only delete tasks you created" 
+      });
+    }
 
     await task.deleteOne();
     res.json({ message: "Task deleted successfully" });
@@ -333,20 +393,27 @@ const getDashboardData = async (req, res) => {
 //@access private
 const getUserDashboardData = async (req, res) => {
   try {
-    const userId = req.user._id; // Only fetch data for the logged-in user
+    const userId = req.user._id;
+
+    const userTaskFilter = {
+      $or: [
+        { createdBy: userId },
+        { assignedTo: userId }
+      ]
+    };
 
     // Fetch statistics for user-specific tasks
-    const totalTasks = await Task.countDocuments({ assignedTo: userId });
+    const totalTasks = await Task.countDocuments(userTaskFilter);
     const pendingTasks = await Task.countDocuments({
-      assignedTo: userId,
+      ...userTaskFilter,
       status: "Pending",
     });
     const completedTasks = await Task.countDocuments({
-      assignedTo: userId,
+      ...userTaskFilter,
       status: "Completed",
     });
     const overdueTasks = await Task.countDocuments({
-      assignedTo: userId,
+      ...userTaskFilter,
       status: { $ne: "Completed" },
       dueDate: { $lt: new Date() },
     });
@@ -354,7 +421,7 @@ const getUserDashboardData = async (req, res) => {
     // Task distribution by status
     const taskStatuses = ["Pending", "In Progress", "Completed"];
     const taskDistributionRaw = await Task.aggregate([
-      { $match: { assignedTo: userId } },
+      { $match: userTaskFilter },
       {
         $group: {
           _id: "$status",
@@ -372,9 +439,8 @@ const getUserDashboardData = async (req, res) => {
 
     // Task distribution by priority
     const taskPriorities = ["Low", "Medium", "High"];
-
     const taskPriorityLevelsRaw = await Task.aggregate([
-      { $match: { assignedTo: userId } },
+      { $match: userTaskFilter },
       {
         $group: {
           _id: "$priority",
@@ -390,7 +456,7 @@ const getUserDashboardData = async (req, res) => {
     }, {});
 
     // Fetch recent 10 tasks for the logged-in user
-    const recentTasks = await Task.find({ assignedTo: userId })
+    const recentTasks = await Task.find(userTaskFilter)
       .sort({ createdAt: -1 })
       .limit(10)
       .select("title status priority dueDate createdAt");
@@ -412,6 +478,8 @@ const getUserDashboardData = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// ... tüm fonksiyonlardan sonra, dosyanın EN SONUNA:
 
 module.exports = {
   getTasks,
