@@ -42,9 +42,9 @@ const MyTasks = () => {
     }
   };
 
-  const handleClick = (taskData) => {
-  // ✅ User da create-task sayfasına gitsin (update modu)
-  navigate(`/create-task`, { state: { taskId: taskData._id } });
+  const handleClick = (taskId) => {
+  // ✅ User task detay sayfasına gitsin (checklist tikleyebilir)
+  navigate(`/user/task-details/${taskId}`);
 };
 
   useEffect(() => {

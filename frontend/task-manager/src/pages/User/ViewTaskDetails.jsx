@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
@@ -10,7 +10,9 @@ import { toast } from "react-hot-toast";
 
 const ViewTaskDetails = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [task, setTask] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const getStatusTagColor = (status) => {
     switch (status) {
@@ -31,14 +33,29 @@ const ViewTaskDetails = () => {
       );
 
       if (response.data) {
-        // const taskInfo = response.data; hiç kullanılmıyor
         setTask(response.data);
+        console.log("Task data:", response.data); // Debug için
+        console.log("Task createdBy:", response.data.createdBy); // Debug için
       }
     } catch (error) {
       console.error("Error fetching task details:", error);
       toast.error("Failed to fetch task details. Please try again.");
     }
   }, [id]);
+
+  // Get current user info
+  const getCurrentUser = React.useCallback(async () => {
+    try {
+      const response = await axiosInstance.get(API_PATHS.AUTH.GET_PROFILE);
+      if (response.data) {
+        setCurrentUser(response.data);
+        console.log("Current user:", response.data); // Debug için
+        console.log("Current user ID:", response.data._id); // Debug için
+      }
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+    }
+  }, []);
 
   // handle todo check
   const updateTodoChecklist = async (index) => {
@@ -62,7 +79,6 @@ const ViewTaskDetails = () => {
         todoChecklist[index].completed = !todoChecklist[index].completed;
       }
     } catch (error) {
-      //todoChecklist[index].completed = !todoChecklist[index].completed;
       console.error("Error updating todo checklist:", error);
       toast.error("Failed to update checklist. Please try again.");
       // Revert the toggle on error
@@ -74,17 +90,22 @@ const ViewTaskDetails = () => {
   // Handle attachment link click
   const handleLinkClick = (link) => {
     if (!/^https?:\/\//i.test(link)) {
-      link = "https://" + link; //default to https
+      link = "https://" + link;
     }
     window.open(link, "_blank");
   };
 
+  // Navigate to update task page
+  const handleUpdateTask = () => {
+    navigate(`/create-task`, { state: { taskId: id } });
+  };
+
   useEffect(() => {
+    getCurrentUser();
     if (id) {
       getTaskDetailsByID();
     }
-    //return () => {};
-  }, [id, getTaskDetailsByID]);
+  }, [id, getTaskDetailsByID, getCurrentUser]);
 
   return (
     <DashboardLayout activeMenu="My Tasks">
@@ -169,6 +190,18 @@ const ViewTaskDetails = () => {
                   ))}
                 </div>
               )}
+
+              {/* Update Task Button - Only show if user is the creator */}
+              {currentUser && task?.createdBy === currentUser._id && (
+                <div className="mt-6">
+                  <button
+                    onClick={handleUpdateTask}
+                    className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors duration-200"
+                  >
+                    Update Task
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -208,7 +241,7 @@ const TodoCheckList = ({ text, isChecked, onChange }) => {
 const Attachment = ({ link, index, onClick }) => {
   return (
     <div
-      className="flex justify-between bg-gray-50 border border-gray-100 px-3 py-2 rounded-md mb-3 mt-2 cursor-pointer"
+      className="flex justify-between bg-gray-50 border border-gray-100 px-3 py-2 rounded-md mb-3 mt-2 cursor-pointer hover:bg-gray-100 transition-colors"
       onClick={onClick}
     >
       <div className="flex-1 flex items-center gap-3">
