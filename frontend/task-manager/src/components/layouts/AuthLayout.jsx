@@ -8,7 +8,6 @@ const AuthLayout = ({children})=> {
         </div>
         
     <div className="hidden md:flex w-[40vw] h-screen bg-blue-50 bg-[url('/bg-img.png')] bg-cover bg-no-repeat bg-center overflow-hidden">
-    <img src={UI_IMG} className="w-full h-full object-cover"></img>
     </div>
     </div>
 };
