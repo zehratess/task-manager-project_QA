@@ -2,6 +2,8 @@ import React, { useContext, useEffect, useState } from "react";
 import { SIDE_MENU_DATA, SIDE_MENU_USER_DATA } from "../../utils/data";
 import { UserContext } from "../../context/userContext";
 import { useNavigate } from "react-router-dom";
+import defaultAvatar from "../../assets/images/default-avatar.jpeg";
+
 
 const SideMenu = ({ activeMenu }) => {
   const { user, clearUser } = useContext(UserContext);
@@ -35,7 +37,7 @@ const SideMenu = ({ activeMenu }) => {
       <div className="flex flex-col items-center justify-center mb-7 pt-5">
         <div className="relative">
           <img
-            src={user?.profileImageUrl || null}
+            src={defaultAvatar}
             alt="Profile Image"
             className="w-20 h-20 bg-slate-400 rounded-full"
           />
