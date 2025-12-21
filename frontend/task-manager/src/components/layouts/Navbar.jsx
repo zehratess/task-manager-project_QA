@@ -22,7 +22,11 @@ const Navbar = ({ activeMenu }) => {
 
 
             <header className="flex items-center justify-center h-full w-full gap-3">
-                
+                <img 
+    src="/logo.png" 
+    alt="Logo" 
+    className="h-10 w-auto object-contain shrink-0" 
+/>
                 <h2 className="text-xl font-medium bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                     GOINON
                 </h2>
