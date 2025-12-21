@@ -1,51 +1,51 @@
 const Task = require("../models/Task");
-//@desc get all tasks (everyone sees: assigned to them OR created by them)
+
+//@desc get all tasks (admin: all, user: assigned)
 //@route GET /api/tasks
 //@access private
 const getTasks = async (req, res) => {
   try {
     const { status } = req.query;
-    
-    // ✅ Base filter
-    let baseFilter = {
-      $or: [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ]
-    };
+    const filter = { createdBy: req.user._id };
 
-    // ✅ Status filter varsa ekle
     if (status) {
-      baseFilter.status = status;
+      filter.status = status;
     }
-
-    const tasks = await Task.find(baseFilter)
-      .populate("assignedTo", "name email profileImageUrl")
-      .sort({ createdAt: -1 }); // ✅ En yeniler önce
+    
+      const tasksFromDb = await Task.find(filter).populate(
+        "assignedTo",
+        "name email profileImageUrl"
+      );
+    
 
     // Add completed todoChecklist count to each task
-    const tasksWithCounts = tasks.map((task) => {
-      const completedCount = task.todoChecklist.filter(
-        (item) => item.completed
-      ).length;
-      return { ...task._doc, completedTodoCount: completedCount };
-    });
+    const tasks = await Promise.all(
+      tasksFromDb.map(async (task) => {
+        const completedCount = (task.todoChecklist || []).filter((item) => item.completed).length;
+        return { ...task._doc, completedTodoCount: completedCount };
+      })
+    );
 
     // Status summary counts
-    const userFilter = {
-      $or: [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ]
-    };
+    const allTasks = await Task.countDocuments({ createdBy: req.user._id });
 
-    const allTasks = await Task.countDocuments(userFilter);
-    const pendingTasks = await Task.countDocuments({ ...userFilter, status: "Pending" });
-    const inProgressTasks = await Task.countDocuments({ ...userFilter, status: "In Progress" });
-    const completedTasks = await Task.countDocuments({ ...userFilter, status: "Completed" });
+    const pendingTasks = await Task.countDocuments({
+      status: "Pending",
+      createdBy: req.user._id,
+    });
+
+    const inProgressTasks = await Task.countDocuments({
+      status: "In Progress",
+      createdBy: req.user._id,
+    });
+
+    const completedTasks = await Task.countDocuments({
+      status: "Completed",
+      createdBy: req.user._id,
+    });
 
     res.json({
-      tasks: tasksWithCounts,
+      tasks,
       statusSummary: {
         all: allTasks,
         pendingTasks,
@@ -54,7 +54,7 @@ const getTasks = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("getTasks error:", error); // ✅ Error log
+
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -71,17 +71,10 @@ const getTaskById = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Admin tümünü görebilir, user sadece kendi oluşturduğu veya kendine atananı
-    if (req.user.role !== "admin") {
-      const isCreator = task.createdBy.toString() === req.user._id.toString();
-      const isAssigned = task.assignedTo.some(
-        (userId) => userId._id.toString() === req.user._id.toString()
-      );
-
-      if (!isCreator && !isAssigned) {
-        return res.status(403).json({ message: "Access denied" });
-      }
-    }
+    // Sadece task'ı oluşturan görebilir
+    if (task.createdBy.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not authorized to view this task" });
+}
 
     res.json(task);
   } catch (error) {
@@ -89,16 +82,12 @@ const getTaskById = async (req, res) => {
   }
 };
 
-//@desc create a new task (admin only)
+//@desc create a new task 
 //@route POST /api/tasks
-//@access private (admin)
-//@desc create a new task
-//@route POST /api/tasks
-//@access private
-//@desc create a new task
-//@route POST /api/tasks
-//@access private
+//@access private 
+
 const createTask = async (req, res) => {
+
   try {
     const {
       title,
@@ -110,35 +99,10 @@ const createTask = async (req, res) => {
       todoChecklist,
     } = req.body;
 
-    // User rolü için kısıtlama
-    if (req.user.role !== "admin") {
-      // ✅ DÜZELTME: String karşılaştırması yerine sadece array ve length kontrolü
-      if (!Array.isArray(assignedTo) || assignedTo.length !== 1) {
-        return res.status(403).json({ 
-          message: "You can only create tasks assigned to yourself" 
-        });
-      }
-      
-      // ✅ assignedTo'yu kullanıcının kendi ID'si ile değiştir
-      const task = await Task.create({
-        title,
-        description,
-        priority,
-        dueDate,
-        assignedTo: [req.user._id], // Backend'de zorla user'ın kendi ID'si
-        createdBy: req.user._id,
-        attachments,
-        todoChecklist,
-      });
+    const assignedToFinal = req.user.role !== "admin" ? [req.user._id] : assignedTo;
 
-      return res.status(201).json({ message: "Task created successfully", task });
-    }
-
-    // Admin için normal flow
-    if (!Array.isArray(assignedTo)) {
-      return res.status(400).json({ 
-        message: "assignedTo must be an array of user IDs" 
-      });
+    if (!Array.isArray(assignedToFinal)) {
+    return res.status(400).json({ message: "assignedTo must be an array of user IDs" });
     }
 
     const task = await Task.create({
@@ -146,13 +110,13 @@ const createTask = async (req, res) => {
       description,
       priority,
       dueDate,
-      assignedTo,
+      assignedTo: assignedToFinal,
       createdBy: req.user._id,
       attachments,
       todoChecklist,
     });
 
-    res.status(201).json({ message: "Task created successfully", task });
+    res.status(201).json({ message: "Task created succesfully", task });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -167,27 +131,14 @@ const updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Admin tümünü güncelleyebilir, user sadece kendi oluşturduğunu veya kendine atananı
-    if (req.user.role !== "admin") {
-      const isCreator = task.createdBy.toString() === req.user._id.toString();
-      const isAssigned = task.assignedTo.some(
-        (userId) => userId.toString() === req.user._id.toString()
-      );
+    // Sadece task'ı oluşturan güncelleyebilir
+    if (task.createdBy.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not authorized to update this task" });
+    }
 
-      if (!isCreator && !isAssigned) {
-        return res.status(403).json({ message: "Not authorized to update this task" });
-      }
-
-      // User sadece kendine atayabilir
-      if (req.body.assignedTo) {
-        if (!Array.isArray(req.body.assignedTo) || 
-            req.body.assignedTo.length !== 1 || 
-            req.body.assignedTo[0] !== req.user._id.toString()) {
-          return res.status(403).json({ 
-            message: "You can only assign tasks to yourself" 
-          });
-        }
-      }
+    // User ise assignedTo değiştiremez
+    if (req.user.role !== "admin" && req.body.assignedTo) {
+    return res.status(403).json({ message: "Users cannot change task assignment" });
     }
 
     task.title = req.body.title || task.title;
@@ -199,34 +150,32 @@ const updateTask = async (req, res) => {
 
     if (req.body.assignedTo) {
       if (!Array.isArray(req.body.assignedTo)) {
-        return res.status(400).json({ 
-          message: "assignedTo must be an array of user IDs" 
-        });
+        return res
+          .status(400)
+          .json({ message: "assignedTo must be an array of user IDs" });
       }
       task.assignedTo = req.body.assignedTo;
     }
 
     const updatedTask = await task.save();
-    res.json({ message: "Task updated successfully", task: updatedTask });
+    res.json({ message: "Task updated successfully", updatedTask });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-//@desc delete a task (admin only)
+//@desc delete a task 
 //@route DELETE /api/tasks/:id
-//@access private (admin)
-const deleteTask = async (req, res) => {
+//@access private 
+  const deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Admin tümünü silebilir, user sadece kendi oluşturduğunu
-    if (req.user.role !== "admin" && task.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        message: "You can only delete tasks you created" 
-      });
+    // Sadece task'ı oluşturan silebilir
+    if (task.createdBy.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not authorized to delete this task" });
     }
 
     await task.deleteOne();
@@ -245,13 +194,10 @@ const updateTaskStatus = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    const isAssigned = task.assignedTo.some(
-      (userId) => userId.toString() === req.user._id.toString()
-    );
-
-    if (!isAssigned && req.user.role !== "admin") {
-      return res.status(403).json({ message: "Not authorized" });
-    }
+    // Sadece task'ı oluşturan değiştirebilir
+    if (task.createdBy.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not authorized to update task status" });
+}
 
     task.status = req.body.status || task.status;
 
@@ -277,10 +223,9 @@ const updateTaskChecklist = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    if (!task.assignedTo.includes(req.user._id) && req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to update checklist" });
+    // Sadece task'ı oluşturan değiştirebilir
+    if (task.createdBy.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: "Not authorized to update checklist" });
     }
 
     task.todoChecklist = todoChecklist; // Replace with updated checklist
@@ -320,10 +265,11 @@ const updateTaskChecklist = async (req, res) => {
 const getDashboardData = async (req, res) => {
   try {
     // Fetch statistics
-    const totalTasks = await Task.countDocuments();
-    const pendingTasks = await Task.countDocuments({ status: "Pending" });
-    const completedTasks = await Task.countDocuments({ status: "Completed" });
+    const totalTasks = await Task.countDocuments({ createdBy: req.user._id });
+    const pendingTasks = await Task.countDocuments({ createdBy: req.user._id, status: "Pending" });
+    const completedTasks = await Task.countDocuments({ createdBy: req.user._id, status: "Completed" });
     const overdueTasks = await Task.countDocuments({
+      createdBy: req.user._id,
       status: { $ne: "Completed" },
       dueDate: { $lt: new Date() },
     });
@@ -332,6 +278,7 @@ const getDashboardData = async (req, res) => {
     const taskStatuses = ["Pending", "In Progress", "Completed"];
 
     const taskDistributionRaw = await Task.aggregate([
+      { $match: { createdBy: req.user._id } },
       {
         $group: {
           _id: "$status",
@@ -351,6 +298,7 @@ const getDashboardData = async (req, res) => {
     // Ensure all priority levels are included
     const taskPriorities = ["Low", "Medium", "High"];
     const taskPriorityLevelsRaw = await Task.aggregate([
+      { $match: { createdBy: req.user._id } },
       {
         $group: {
           _id: "$priority",
@@ -365,7 +313,7 @@ const getDashboardData = async (req, res) => {
     }, {});
 
     // Fetch recent 10 tasks
-    const recentTasks = await Task.find()
+    const recentTasks = await Task.find({ createdBy: req.user._id })
       .sort({ createdAt: -1 })
       .limit(10)
       .select("title status priority dueDate createdAt");
@@ -393,27 +341,20 @@ const getDashboardData = async (req, res) => {
 //@access private
 const getUserDashboardData = async (req, res) => {
   try {
-    const userId = req.user._id;
-
-    const userTaskFilter = {
-      $or: [
-        { createdBy: userId },
-        { assignedTo: userId }
-      ]
-    };
+    const userId = req.user._id; // Only fetch data for the logged-in user
 
     // Fetch statistics for user-specific tasks
-    const totalTasks = await Task.countDocuments(userTaskFilter);
+    const totalTasks = await Task.countDocuments({ createdBy: userId });
     const pendingTasks = await Task.countDocuments({
-      ...userTaskFilter,
+      createdBy: userId,
       status: "Pending",
     });
     const completedTasks = await Task.countDocuments({
-      ...userTaskFilter,
+      createdBy: userId,
       status: "Completed",
     });
     const overdueTasks = await Task.countDocuments({
-      ...userTaskFilter,
+      createdBy: userId,
       status: { $ne: "Completed" },
       dueDate: { $lt: new Date() },
     });
@@ -421,7 +362,7 @@ const getUserDashboardData = async (req, res) => {
     // Task distribution by status
     const taskStatuses = ["Pending", "In Progress", "Completed"];
     const taskDistributionRaw = await Task.aggregate([
-      { $match: userTaskFilter },
+      { $match: { createdBy: userId } },
       {
         $group: {
           _id: "$status",
@@ -439,8 +380,9 @@ const getUserDashboardData = async (req, res) => {
 
     // Task distribution by priority
     const taskPriorities = ["Low", "Medium", "High"];
+
     const taskPriorityLevelsRaw = await Task.aggregate([
-      { $match: userTaskFilter },
+      { $match: { createdBy: userId } },
       {
         $group: {
           _id: "$priority",
@@ -456,7 +398,7 @@ const getUserDashboardData = async (req, res) => {
     }, {});
 
     // Fetch recent 10 tasks for the logged-in user
-    const recentTasks = await Task.find(userTaskFilter)
+    const recentTasks = await Task.find({ createdBy: userId })
       .sort({ createdAt: -1 })
       .limit(10)
       .select("title status priority dueDate createdAt");
@@ -478,8 +420,6 @@ const getUserDashboardData = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
-// ... tüm fonksiyonlardan sonra, dosyanın EN SONUNA:
 
 module.exports = {
   getTasks,

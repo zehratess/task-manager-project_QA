@@ -23,13 +23,13 @@ const MyTasks = () => {
         },
       });
 
-      setAllTasks(response.data?.tasks?.length > 0 ? response.data.tasks : []);
+      setAllTasks(response.data?.tasks ?? []);
 
       //Map statusSummary data with fixed labels and order
       const statusSummary = response.data?.statusSummary || {};
 
       const statusArray = [
-        { label: "All", count: response.data?.all || 0 },
+        { label: "All", count: statusSummary?.all || 0 },
         { label: "Pending", count: statusSummary?.pendingTasks || 0 },
         { label: "In Progress", count: statusSummary?.inProgressTasks || 0 },
         { label: "Completed", count: statusSummary?.completedTasks || 0 },

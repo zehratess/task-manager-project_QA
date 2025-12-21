@@ -74,6 +74,14 @@ const UserDashboard = () => {
     //return () => {};
   }, []);
 
+  const totalTasksValue =
+  dashboardData?.statistics?.totalTasks ??
+  dashboardData?.charts?.taskDistribution?.All ??
+  dashboardData?.statusSummary?.all ??
+  dashboardData?.tasks?.length ??
+  0;
+
+
   return (
     <DashboardLayout activeMenu="Dashboard">
       <div className="card my-5">
@@ -90,9 +98,7 @@ const UserDashboard = () => {
           <InfoCard
             icon={<IoMdCard />}
             label="Total Tasks"
-            value={addThousandsSeparator(
-              dashboardData?.charts?.taskDistribution?.All || 0
-            )}
+            value={addThousandsSeparator(totalTasksValue)}
             color="bg-primary"
           />
           <InfoCard
