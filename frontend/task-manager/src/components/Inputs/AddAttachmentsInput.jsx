@@ -1,73 +1,110 @@
- import React, { useState } from 'react'
-import { HiMiniPlus, HiOutlineTrash } from "react-icons/hi2";
-import { LuPaperclip } from "react-icons/lu";
+import React, { useState } from "react";
+import { LuLink, LuUpload, LuX } from "react-icons/lu";
+import axiosInstance from "../../utils/axiosInstance";
+import { toast } from "react-hot-toast";
 
+const AddAttachmentsInput = ({ todoList, setTodoList }) => {
+  const [inputValue, setInputValue] = useState("");
+  const [uploading, setUploading] = useState(false);
 
-const AddAttachmentsInput = ({attachments, setAttachments}) => {
-    const [option, setOption] = useState("");
+  // ✅ Link ekleme
+  const handleAddLink = () => {
+    if (inputValue.trim()) {
+      setTodoList([...todoList, inputValue.trim()]);
+      setInputValue("");
+    }
+  };
 
-    const safeAttachments = Array.isArray(attachments) ? attachments : []; // eklendi
+  // ✅ Dosya upload
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
+    setUploading(true);
 
-    //function to handle adding an option
-    const handleAddOption = () => {
-        if(option.trim()){
-            setAttachments([...safeAttachments, option.trim()]); // attachments -> safeAttachments
-            setOption("");
-        }
-    };
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
+      const response = await axiosInstance.post("/api/files/upload-file", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-    //function to handle deleting an option
-    const handleDeleteOption = (index) => {
-        const updatedArr = safeAttachmentsttachments.filter((_, idx) => idx !== index);
-        setAttachments(updatedArr); // eklendi
-    };
+      if (response.data.fileUrl) {
+        setTodoList([...todoList, response.data.fileUrl]);
+        toast.success("File uploaded successfully!");
+      }
+    } catch (error) {
+      console.error("File upload error:", error);
+      toast.error(error.response?.data?.message || "Failed to upload file");
+    } finally {
+      setUploading(false);
+      e.target.value = ""; // Reset file input
+    }
+  };
+
+  const handleRemove = (index) => {
+    const updatedList = todoList.filter((_, i) => i !== index);
+    setTodoList(updatedList);
+  };
 
   return (
     <div>
-        {safeAttachments.map((item, index) => (
-            <div 
-             key={item}
-             className="flex justify-between bg-gray-50border border-gray-100 px-3 py-2 rounded-md mb-3 mt-2"
-             >
-                <div  className="flex-1  flex items-center gap-3 border border-gray-100">
-                    <LuPaperclip className="text-gray-400" />
-                    <p className="text-xs text-black">{item}</p>
-                </div>
+      {/* Link Input */}
+      <div className="flex gap-2 mt-2">
+        <input
+          type="text"
+          placeholder="Add link (e.g., https://example.com)"
+          className="form-input flex-1"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyPress={(e) => e.key === "Enter" && handleAddLink()}
+        />
+        <button
+          type="button"
+          className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-xs rounded cursor-pointer hover:bg-blue-600 w-fit"
+          onClick={handleAddLink}
+        >
+          <LuLink /> Add Link
+        </button>
+      </div>
 
-                <button 
-                   className="cursor-pointer"
-                   onClick={() => {
-                    handleDeleteOption(index);
-                   }}
-                   >
-                    <HiOutlineTrash className="text-lg text-red-500" />
+      {/* File Upload */}
+      <div className="mt-3">
+        <label className="flex items-center gap-2 px-3 py-1.5 bg-green-500 text-white text-xs rounded cursor-pointer hover:bg-green-600 w-fit">
+          <LuUpload />
+          {uploading ? "Uploading..." : "Upload File"}
+          <input
+            type="file"
+            className="hidden"
+            onChange={handleFileUpload}
+            disabled={uploading}
+          />
+        </label>
+      </div>
 
-                   </button>
-        </div>
-        ))}
-
-        <div className="flex items-center gap-5 mt-4">
-            <div className="flex-1 flex items-center gap-3 border border-gray-100 rounded-md px-3">
-                <LuPaperclip className="text-gray-400" />
-
-                <input 
-                  type = "text"
-                  placeholder="Add File Link"
-                  value={option}
-                  onChange={({ target }) => setOption(target.value)}
-                  className="w-full text-[13px] text-black outline-none bg-white py-2"
-                  />
-            </div>
-
-
-            <button className="card-btn text-nowrap" onClick={handleAddOption}>
-                <HiMiniPlus className="text-lg" />Add
+      {/* Attachment List */}
+      <div className="mt-3">
+        {todoList.map((item, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded px-3 py-2 mb-2"
+          >
+            <p className="text-xs text-gray-700 truncate flex-1">{item}</p>
+            <button
+              type="button"
+              onClick={() => handleRemove(index)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <LuX />
             </button>
-        </div>
-        </div>
-  )
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
-export default AddAttachmentsInput
+export default AddAttachmentsInput;

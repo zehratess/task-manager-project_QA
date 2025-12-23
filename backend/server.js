@@ -11,6 +11,7 @@ const authRoutes = require("./routes/authRoutes")
 const userRoutes = require("./routes/userRoutes")
 const taskRoutes = require("./routes/taskRoutes")
 const reportRoutes = require("./routes/reportRoutes")
+const fileRoutes = require("./routes/fileRoutes");
 
 const app = express();
 
@@ -24,15 +25,18 @@ app.use(cors({
 //connect db
 connectDB();
 
-
 //Middleware
 app.use(express.json());
+
+// ✅ BURAYI EKLE - Static files için (route'lardan ÖNCE)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/files", fileRoutes);
 
 // MongoDB bağlantısı
 mongoose.connect(process.env.MONGO_URI, {
@@ -45,4 +49,3 @@ mongoose.connect(process.env.MONGO_URI, {
 //Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-

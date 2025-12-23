@@ -6,43 +6,40 @@ const Task = require("../models/Task");
 const getTasks = async (req, res) => {
   try {
     const { status } = req.query;
-    const filter = { createdBy: req.user._id };
+    
+    // ✅ Hem oluşturduğu hem atanan görevleri göster
+    const filter = {
+      $or: [
+        { createdBy: req.user._id },
+        { assignedTo: req.user._id }
+      ]
+    };
 
     if (status) {
       filter.status = status;
     }
     
-      const tasksFromDb = await Task.find(filter).populate(
-        "assignedTo",
-        "name email profileImageUrl"
-      );
-    
-
-    // Add completed todoChecklist count to each task
-    const tasks = await Promise.all(
-      tasksFromDb.map(async (task) => {
-        const completedCount = (task.todoChecklist || []).filter((item) => item.completed).length;
-        return { ...task._doc, completedTodoCount: completedCount };
-      })
+    const tasksFromDb = await Task.find(filter).populate(
+      "assignedTo",
+      "name email profileImageUrl"
     );
 
-    // Status summary counts
-    const allTasks = await Task.countDocuments({ createdBy: req.user._id });
-
-    const pendingTasks = await Task.countDocuments({
-      status: "Pending",
-      createdBy: req.user._id,
+    const tasks = tasksFromDb.map((task) => {
+      const completedCount = (task.todoChecklist || []).filter((item) => item.completed).length;
+      return { ...task._doc, completedTodoCount: completedCount };
     });
 
-    const inProgressTasks = await Task.countDocuments({
-      status: "In Progress",
-      createdBy: req.user._id,
-    });
+    const userFilter = {
+      $or: [
+        { createdBy: req.user._id },
+        { assignedTo: req.user._id }
+      ]
+    };
 
-    const completedTasks = await Task.countDocuments({
-      status: "Completed",
-      createdBy: req.user._id,
-    });
+    const allTasks = await Task.countDocuments(userFilter);
+    const pendingTasks = await Task.countDocuments({ ...userFilter, status: "Pending" });
+    const inProgressTasks = await Task.countDocuments({ ...userFilter, status: "In Progress" });
+    const completedTasks = await Task.countDocuments({ ...userFilter, status: "Completed" });
 
     res.json({
       tasks,
@@ -54,7 +51,6 @@ const getTasks = async (req, res) => {
       },
     });
   } catch (error) {
-
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -71,10 +67,15 @@ const getTaskById = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Sadece task'ı oluşturan görebilir
-    if (task.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "Not authorized to view this task" });
-}
+    // ✅ Creator VEYA assigned görebilir
+    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isAssigned = task.assignedTo.some(
+      (userId) => userId._id.toString() === req.user._id.toString()
+    );
+
+    if (!isCreator && !isAssigned) {
+      return res.status(403).json({ message: "Not authorized to view this task" });
+    }
 
     res.json(task);
   } catch (error) {
@@ -82,12 +83,10 @@ const getTaskById = async (req, res) => {
   }
 };
 
-//@desc create a new task 
+//@desc create a new task
 //@route POST /api/tasks
-//@access private 
-
+//@access private
 const createTask = async (req, res) => {
-
   try {
     const {
       title,
@@ -99,10 +98,11 @@ const createTask = async (req, res) => {
       todoChecklist,
     } = req.body;
 
+    // ✅ User ise sadece kendine atayabilir, Admin herkese atayabilir
     const assignedToFinal = req.user.role !== "admin" ? [req.user._id] : assignedTo;
 
     if (!Array.isArray(assignedToFinal)) {
-    return res.status(400).json({ message: "assignedTo must be an array of user IDs" });
+      return res.status(400).json({ message: "assignedTo must be an array of user IDs" });
     }
 
     const task = await Task.create({
@@ -116,7 +116,7 @@ const createTask = async (req, res) => {
       todoChecklist,
     });
 
-    res.status(201).json({ message: "Task created succesfully", task });
+    res.status(201).json({ message: "Task created successfully", task });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -194,10 +194,15 @@ const updateTaskStatus = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Sadece task'ı oluşturan değiştirebilir
-    if (task.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "Not authorized to update task status" });
-}
+    // ✅ Creator VEYA assigned status değiştirebilir
+    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isAssigned = task.assignedTo.some(
+      (userId) => userId.toString() === req.user._id.toString()
+    );
+
+    if (!isCreator && !isAssigned) {
+      return res.status(403).json({ message: "Not authorized to update task status" });
+    }
 
     task.status = req.body.status || task.status;
 
@@ -223,22 +228,22 @@ const updateTaskChecklist = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Sadece task'ı oluşturan değiştirebilir
-    if (task.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "Not authorized to update checklist" });
+    // ✅ Creator VEYA assigned checklist güncelleyebilir
+    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isAssigned = task.assignedTo.some(
+      (userId) => userId.toString() === req.user._id.toString()
+    );
+
+    if (!isCreator && !isAssigned) {
+      return res.status(403).json({ message: "Not authorized to update checklist" });
     }
 
-    task.todoChecklist = todoChecklist; // Replace with updated checklist
+    task.todoChecklist = todoChecklist;
 
-    // Auto-update progress based on checklist completion
-    const completedCount = task.todoChecklist.filter(
-      (item) => item.completed
-    ).length;
+    const completedCount = task.todoChecklist.filter((item) => item.completed).length;
     const totalItems = task.todoChecklist.length;
-    task.progress =
-      totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+    task.progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
 
-    // Auto-mark task as completed if all items are checked
     if (task.progress === 100) {
       task.status = "Completed";
     } else if (task.progress > 0) {
