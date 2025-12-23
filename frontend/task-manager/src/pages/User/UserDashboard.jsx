@@ -75,19 +75,20 @@ const UserDashboard = () => {
   }, []);
 
   const totalTasksValue =
-  dashboardData?.statistics?.totalTasks ??
-  dashboardData?.charts?.taskDistribution?.All ??
-  dashboardData?.statusSummary?.all ??
-  dashboardData?.tasks?.length ??
-  0;
-
+    dashboardData?.statistics?.totalTasks ??
+    dashboardData?.charts?.taskDistribution?.All ??
+    dashboardData?.statusSummary?.all ??
+    dashboardData?.tasks?.length ??
+    0;
 
   return (
     <DashboardLayout activeMenu="Dashboard">
       <div className="card my-5">
         <div>
           <div className="col-span-3">
-            <h2 className="text-xl md:text-2xl">Hello, {user?.name}. What's going on?</h2>
+            <h2 className="text-xl md:text-2xl">
+              Hello, {user?.name}. What's going on?
+            </h2>
             <p className="text-xs md:text-[13px] text-gray-400 mt-1.5">
               {moment().format("dddd Do MMM YYYY")}
             </p>
@@ -127,7 +128,52 @@ const UserDashboard = () => {
           />
         </div>
       </div>
-
+      {dashboardData?.statistics?.upcomingTasks > 0 && (
+        <button
+          onClick={() =>
+            navigate("/user/tasks", { state: { filterDueSoon: true } })
+          }
+          className="w-full bg-white/30 border-l-4 border-orange-300 p-4 mb-5 rounded hover:bg-white/40 transition-all duration-200 cursor-pointer group"
+        >
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-5 w-5 text-orange-500 group-hover:text-orange-600 transition-colors"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3 flex-1 flex items-center justify-between">
+              <p className="text-sm font-medium text-orange-800">
+                You have{" "}
+                <span className="font-bold">
+                  {dashboardData.statistics.upcomingTasks}
+                </span>{" "}
+                task(s) due in the next 3 days!
+              </p>
+              <svg
+                className="h-5 w-5 text-orange-600 group-hover:translate-x-1 transition-transform"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </div>
+          </div>
+        </button>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
         <div>
           <div className="card">

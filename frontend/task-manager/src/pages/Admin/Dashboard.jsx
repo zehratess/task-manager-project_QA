@@ -118,6 +118,15 @@ const Dashboard = () => {
             )}
             color="bg-lime-500"
           />
+          <InfoCard
+    icon={<IoMdCard />}
+    label="Upcoming (3 days)"
+    value={addThousandsSeparator(
+      dashboardData?.statistics?.upcomingTasks || 0
+    )}
+    color="bg-orange-500"
+  />
+
         </div>
       </div>
 

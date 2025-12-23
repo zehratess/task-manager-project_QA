@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import DashboardLayout from "../../components/layouts/DashboardLayout";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import { LuFileSpreadsheet } from "react-icons/lu";
@@ -9,11 +9,20 @@ import TaskCard from "../../components/Cards/TaskCard";
 import { toast } from "react-hot-toast";
 
 const MyTasks = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const [filterStatus, setFilterStatus] = useState(
+    location.state?.filterDueSoon ? "Upcoming" : "All"
+  );
   const [allTasks, setAllTasks] = useState([]);
   const [tabs, setTabs] = useState([]);
-  const [filterStatus, setFilterStatus] = useState("All");
 
-  const navigate = useNavigate();
+  useEffect(() => {
+    if (location.state?.filterDueSoon) {
+      window.history.replaceState({}, document.title);
+    }
+  }, []);
 
   const getAllTasks = async () => {
     try {
@@ -23,9 +32,8 @@ const MyTasks = () => {
         },
       });
 
-      setAllTasks(response.data?.tasks ?? []);
+      setAllTasks(response.data?.tasks?.length > 0 ? response.data.tasks : []);
 
-      //Map statusSummary data with fixed labels and order
       const statusSummary = response.data?.statusSummary || {};
 
       const statusArray = [
@@ -33,6 +41,7 @@ const MyTasks = () => {
         { label: "Pending", count: statusSummary?.pendingTasks || 0 },
         { label: "In Progress", count: statusSummary?.inProgressTasks || 0 },
         { label: "Completed", count: statusSummary?.completedTasks || 0 },
+        { label: "Upcoming", count: statusSummary?.upcomingTasks || 0 }, // ✅ Yeni
       ];
 
       setTabs(statusArray);
@@ -43,13 +52,11 @@ const MyTasks = () => {
   };
 
   const handleClick = (taskId) => {
-  // ✅ User task detay sayfasına gitsin (checklist tikleyebilir)
-  navigate(`/user/task-details/${taskId}`);
-};
+    navigate(`/user/task-details/${taskId}`);
+  };
 
   useEffect(() => {
-    getAllTasks(); //filterStatus parametresi kaldırıldı
-    //return () => {};
+    getAllTasks();
   }, [filterStatus]);
 
   return (

@@ -7,7 +7,6 @@ const getTasks = async (req, res) => {
   try {
     const { status } = req.query;
     
-    // ✅ Hem oluşturduğu hem atanan görevleri göster
     const filter = {
       $or: [
         { createdBy: req.user._id },
@@ -15,8 +14,21 @@ const getTasks = async (req, res) => {
       ]
     };
 
-    if (status) {
+    // ✅ Status filter
+    if (status && status !== "Upcoming") {
       filter.status = status;
+    }
+
+    // ✅ Upcoming filter - 3 gün içinde
+    if (status === "Upcoming") {
+      const threeDaysLater = new Date();
+      threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+      
+      filter.status = { $ne: "Completed" };
+      filter.dueDate = {
+        $gte: new Date(),
+        $lte: threeDaysLater
+      };
     }
     
     const tasksFromDb = await Task.find(filter).populate(
@@ -40,6 +52,18 @@ const getTasks = async (req, res) => {
     const pendingTasks = await Task.countDocuments({ ...userFilter, status: "Pending" });
     const inProgressTasks = await Task.countDocuments({ ...userFilter, status: "In Progress" });
     const completedTasks = await Task.countDocuments({ ...userFilter, status: "Completed" });
+    
+    // ✅ Upcoming count
+    const threeDaysLater = new Date();
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+    const upcomingTasks = await Task.countDocuments({
+      ...userFilter,
+      status: { $ne: "Completed" },
+      dueDate: {
+        $gte: new Date(),
+        $lte: threeDaysLater
+      }
+    });
 
     res.json({
       tasks,
@@ -48,6 +72,7 @@ const getTasks = async (req, res) => {
         pendingTasks,
         inProgressTasks,
         completedTasks,
+        upcomingTasks, // ✅ Yeni
       },
     });
   } catch (error) {
@@ -74,7 +99,9 @@ const getTaskById = async (req, res) => {
     );
 
     if (!isCreator && !isAssigned) {
-      return res.status(403).json({ message: "Not authorized to view this task" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to view this task" });
     }
 
     res.json(task);
@@ -99,10 +126,13 @@ const createTask = async (req, res) => {
     } = req.body;
 
     // ✅ User ise sadece kendine atayabilir, Admin herkese atayabilir
-    const assignedToFinal = req.user.role !== "admin" ? [req.user._id] : assignedTo;
+    const assignedToFinal =
+      req.user.role !== "admin" ? [req.user._id] : assignedTo;
 
     if (!Array.isArray(assignedToFinal)) {
-      return res.status(400).json({ message: "assignedTo must be an array of user IDs" });
+      return res
+        .status(400)
+        .json({ message: "assignedTo must be an array of user IDs" });
     }
 
     const task = await Task.create({
@@ -133,12 +163,16 @@ const updateTask = async (req, res) => {
 
     // Sadece task'ı oluşturan güncelleyebilir
     if (task.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "Not authorized to update this task" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this task" });
     }
 
     // User ise assignedTo değiştiremez
     if (req.user.role !== "admin" && req.body.assignedTo) {
-    return res.status(403).json({ message: "Users cannot change task assignment" });
+      return res
+        .status(403)
+        .json({ message: "Users cannot change task assignment" });
     }
 
     task.title = req.body.title || task.title;
@@ -164,10 +198,10 @@ const updateTask = async (req, res) => {
   }
 };
 
-//@desc delete a task 
+//@desc delete a task
 //@route DELETE /api/tasks/:id
-//@access private 
-  const deleteTask = async (req, res) => {
+//@access private
+const deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
 
@@ -175,7 +209,9 @@ const updateTask = async (req, res) => {
 
     // Sadece task'ı oluşturan silebilir
     if (task.createdBy.toString() !== req.user._id.toString()) {
-    return res.status(403).json({ message: "Not authorized to delete this task" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this task" });
     }
 
     await task.deleteOne();
@@ -201,7 +237,9 @@ const updateTaskStatus = async (req, res) => {
     );
 
     if (!isCreator && !isAssigned) {
-      return res.status(403).json({ message: "Not authorized to update task status" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update task status" });
     }
 
     task.status = req.body.status || task.status;
@@ -235,14 +273,19 @@ const updateTaskChecklist = async (req, res) => {
     );
 
     if (!isCreator && !isAssigned) {
-      return res.status(403).json({ message: "Not authorized to update checklist" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update checklist" });
     }
 
     task.todoChecklist = todoChecklist;
 
-    const completedCount = task.todoChecklist.filter((item) => item.completed).length;
+    const completedCount = task.todoChecklist.filter(
+      (item) => item.completed
+    ).length;
     const totalItems = task.todoChecklist.length;
-    task.progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+    task.progress =
+      totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
 
     if (task.progress === 100) {
       task.status = "Completed";
@@ -267,73 +310,78 @@ const updateTaskChecklist = async (req, res) => {
 //@desc get dashboard data (admin)
 //@route GET /api/tasks/dashboard-data
 //@access private
+//@desc get dashboard data (admin)
+//@route GET /api/tasks/dashboard-data
+//@access private
 const getDashboardData = async (req, res) => {
   try {
-    // Fetch statistics
-    const totalTasks = await Task.countDocuments({ createdBy: req.user._id });
-    const pendingTasks = await Task.countDocuments({ createdBy: req.user._id, status: "Pending" });
-    const completedTasks = await Task.countDocuments({ createdBy: req.user._id, status: "Completed" });
+    // ✅ Admin için de hem created hem assigned
+    const userFilter = {
+      $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
+    };
+
+    const totalTasks = await Task.countDocuments(userFilter);
+    const pendingTasks = await Task.countDocuments({
+      ...userFilter,
+      status: "Pending",
+    });
+    const completedTasks = await Task.countDocuments({
+      ...userFilter,
+      status: "Completed",
+    });
     const overdueTasks = await Task.countDocuments({
-      createdBy: req.user._id,
+      ...userFilter,
       status: { $ne: "Completed" },
       dueDate: { $lt: new Date() },
     });
 
-    // Ensure all possible statuses are included
     const taskStatuses = ["Pending", "In Progress", "Completed"];
-
     const taskDistributionRaw = await Task.aggregate([
-      { $match: { createdBy: req.user._id } },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
+      { $match: userFilter },
+      { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
 
     const taskDistribution = taskStatuses.reduce((acc, status) => {
-      const formattedKey = status.replace(/\s+/g, ""); // Remove spaces for response keys
+      const formattedKey = status.replace(/\s+/g, "");
       acc[formattedKey] =
         taskDistributionRaw.find((item) => item._id === status)?.count || 0;
       return acc;
     }, {});
-    taskDistribution["All"] = totalTasks; // Add total count to taskDistribution
+    taskDistribution["All"] = totalTasks;
 
-    // Ensure all priority levels are included
     const taskPriorities = ["Low", "Medium", "High"];
     const taskPriorityLevelsRaw = await Task.aggregate([
-      { $match: { createdBy: req.user._id } },
-      {
-        $group: {
-          _id: "$priority",
-          count: { $sum: 1 },
-        },
-      },
+      { $match: userFilter },
+      { $group: { _id: "$priority", count: { $sum: 1 } } },
     ]);
+
+    // Yaklaşan görevler (3 gün içinde)
+    const threeDaysLater = new Date();
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+
+    const upcomingTasks = await Task.countDocuments({
+      ...userFilter,
+      status: { $ne: "Completed" },
+      dueDate: {
+        $gte: new Date(), // Bugünden sonra
+        $lte: threeDaysLater, // 3 gün içinde
+      },
+    });
+
     const taskPriorityLevels = taskPriorities.reduce((acc, priority) => {
       acc[priority] =
         taskPriorityLevelsRaw.find((item) => item._id === priority)?.count || 0;
       return acc;
     }, {});
 
-    // Fetch recent 10 tasks
-    const recentTasks = await Task.find({ createdBy: req.user._id })
+    const recentTasks = await Task.find(userFilter)
       .sort({ createdAt: -1 })
       .limit(10)
       .select("title status priority dueDate createdAt");
 
     res.status(200).json({
-      statistics: {
-        totalTasks,
-        pendingTasks,
-        completedTasks,
-        overdueTasks,
-      },
-      charts: {
-        taskDistribution,
-        taskPriorityLevels,
-      },
+      statistics: { totalTasks, pendingTasks, completedTasks, overdueTasks, upcomingTasks },
+      charts: { taskDistribution, taskPriorityLevels },
       recentTasks,
     });
   } catch (error) {
@@ -344,22 +392,30 @@ const getDashboardData = async (req, res) => {
 //@desc get user dashboard data
 //@route GET /api/tasks/user-dashboard-data
 //@access private
+//@desc get user dashboard data
+//@route GET /api/tasks/user-dashboard-data
+//@access private
 const getUserDashboardData = async (req, res) => {
   try {
-    const userId = req.user._id; // Only fetch data for the logged-in user
+    const userId = req.user._id;
 
-    // Fetch statistics for user-specific tasks
-    const totalTasks = await Task.countDocuments({ createdBy: userId });
+    // ✅ Hem created hem assigned
+    const userFilter = {
+      $or: [{ createdBy: userId }, { assignedTo: userId }],
+    };
+
+    // Fetch statistics
+    const totalTasks = await Task.countDocuments(userFilter);
     const pendingTasks = await Task.countDocuments({
-      createdBy: userId,
+      ...userFilter,
       status: "Pending",
     });
     const completedTasks = await Task.countDocuments({
-      createdBy: userId,
+      ...userFilter,
       status: "Completed",
     });
     const overdueTasks = await Task.countDocuments({
-      createdBy: userId,
+      ...userFilter,
       status: { $ne: "Completed" },
       dueDate: { $lt: new Date() },
     });
@@ -367,7 +423,7 @@ const getUserDashboardData = async (req, res) => {
     // Task distribution by status
     const taskStatuses = ["Pending", "In Progress", "Completed"];
     const taskDistributionRaw = await Task.aggregate([
-      { $match: { createdBy: userId } },
+      { $match: userFilter }, // ✅ userFilter kullan
       {
         $group: {
           _id: "$status",
@@ -376,18 +432,31 @@ const getUserDashboardData = async (req, res) => {
       },
     ]);
 
+    // Yaklaşan görevler (3 gün içinde)
+    const threeDaysLater = new Date();
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+
+    const upcomingTasks = await Task.countDocuments({
+      ...userFilter,
+      status: { $ne: "Completed" },
+      dueDate: {
+        $gte: new Date(), // Bugünden sonra
+        $lte: threeDaysLater, // 3 gün içinde
+      },
+    });
+
     const taskDistribution = taskStatuses.reduce((acc, status) => {
       const formattedKey = status.replace(/\s+/g, "");
       acc[formattedKey] =
         taskDistributionRaw.find((item) => item._id === status)?.count || 0;
       return acc;
     }, {});
+    taskDistribution["All"] = totalTasks; // ✅ All ekle
 
     // Task distribution by priority
     const taskPriorities = ["Low", "Medium", "High"];
-
     const taskPriorityLevelsRaw = await Task.aggregate([
-      { $match: { createdBy: userId } },
+      { $match: userFilter }, // ✅ userFilter kullan
       {
         $group: {
           _id: "$priority",
@@ -402,8 +471,8 @@ const getUserDashboardData = async (req, res) => {
       return acc;
     }, {});
 
-    // Fetch recent 10 tasks for the logged-in user
-    const recentTasks = await Task.find({ createdBy: userId })
+    // Fetch recent 10 tasks
+    const recentTasks = await Task.find(userFilter) // ✅ userFilter kullan
       .sort({ createdAt: -1 })
       .limit(10)
       .select("title status priority dueDate createdAt");
@@ -414,6 +483,7 @@ const getUserDashboardData = async (req, res) => {
         pendingTasks,
         completedTasks,
         overdueTasks,
+        upcomingTasks,
       },
       charts: {
         taskDistribution,
@@ -422,6 +492,7 @@ const getUserDashboardData = async (req, res) => {
       recentTasks,
     });
   } catch (error) {
+    console.error("getUserDashboardData error:", error); // ✅ Debug
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
