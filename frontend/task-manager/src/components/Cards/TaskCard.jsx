@@ -15,7 +15,7 @@ const TaskCard = ({
     assignedTo,
     attachmentCount,
     completedTodoCount,
-    todoCheckList,
+    todoChecklist,
     onClick
 }) => {
 
@@ -83,7 +83,7 @@ const TaskCard = ({
                 <p className="text-[13px] text-gray-700/80 font-medium mt-2 mb-2 leading-[18px]">
                     Task Done:{" "}
                     <span className="font-semibold text-gray-700">
-                        {completedTodoCount} / {todoCheckList?.length || 0}
+                        {completedTodoCount} / {todoChecklist?.length || 0}
                     </span>
                 </p>
                 
