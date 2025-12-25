@@ -55,6 +55,10 @@ const App = () => {
             </Route>
           </Route>
 
+          <Route element={<PrivateRoute allowedRoles={["admin", "user"]} />}>
+            <Route path="/create-task" element={<CreateTask />} />
+          </Route>
+
           {/* Default Route */}
           <Route path="/" element={<Root />} />
         </Routes>
