@@ -89,15 +89,22 @@ const ViewTaskDetails = () => {
 
   // Handle attachment link click
   const handleLinkClick = (link) => {
-    if (!/^https?:\/\//i.test(link)) {
-      link = "https://" + link;
+    // ✅ Eğer obje ise storagePath'i al
+    const url = typeof link === "object" ? link.storagePath : link;
+
+    // External link mi yoksa upload edilmiş dosya mı?
+    if (url.startsWith("http")) {
+      // External link
+      window.open(url, "_blank");
+    } else {
+      // Uploaded file - Backend URL'i ekle
+      window.open(`http://localhost:8000${url}`, "_blank");
     }
-    window.open(link, "_blank");
   };
 
   // Navigate to update task page
   const handleUpdateTask = () => {
-    navigate(`/create-task`, { state: { taskId: id } });
+    navigate(`/user/create-task`, { state: { taskId: id } });
   };
 
   useEffect(() => {
@@ -180,12 +187,12 @@ const ViewTaskDetails = () => {
                   <label className="text-xs font-medium text-slate-500">
                     Attachments
                   </label>
-                  {task?.attachments?.map((link, index) => (
+                  {task?.attachments?.map((attachment, index) => (
                     <Attachment
                       key={`link_${index}`}
-                      link={link}
+                      link={attachment} // ✅ Tüm objeyi gönder
                       index={index}
-                      onClick={() => handleLinkClick(link)}
+                      onClick={() => handleLinkClick(attachment)} // ✅ Tüm objeyi gönder
                     />
                   ))}
                 </div>
@@ -239,17 +246,21 @@ const TodoCheckList = ({ text, isChecked, onChange }) => {
 };
 
 const Attachment = ({ link, index, onClick }) => {
+  // ✅ Eğer link obje ise, storagePath'i al
+  const attachmentUrl = typeof link === "object" ? link.storagePath : link;
+  const attachmentName = typeof link === "object" ? link.fileName : link;
+
   return (
     <div
       className="flex justify-between bg-gray-50 border border-gray-100 px-3 py-2 rounded-md mb-3 mt-2 cursor-pointer hover:bg-gray-100 transition-colors"
-      onClick={onClick}
+      onClick={() => onClick(attachmentUrl)} // ✅ URL'i gönder
     >
       <div className="flex-1 flex items-center gap-3">
         <span className="text-xs text-gray-400 font-semibold mr-2">
           {index < 9 ? `0${index + 1}` : index + 1}
         </span>
-
-        <p className="text-xs text-black">{link}</p>
+        <p className="text-xs text-black">{attachmentName}</p>{" "}
+        {/* ✅ İsmi göster */}
       </div>
 
       <LuSquareArrowOutUpRight className="text-lg text-gray-400" />

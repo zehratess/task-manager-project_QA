@@ -3,14 +3,20 @@ import { LuLink, LuUpload, LuX } from "react-icons/lu";
 import axiosInstance from "../../utils/axiosInstance";
 import { toast } from "react-hot-toast";
 
-const AddAttachmentsInput = ({ todoList, setTodoList }) => {
+const AddAttachmentsInput = ({ todoList, setTodoList, user }) => {
   const [inputValue, setInputValue] = useState("");
   const [uploading, setUploading] = useState(false);
 
   // ✅ Link ekleme
   const handleAddLink = () => {
     if (inputValue.trim()) {
-      setTodoList([...todoList, inputValue.trim()]);
+      const newLink = {
+        fileName: "External Link",
+        storagePath: inputValue.trim(),
+        fileSize: 0,
+        uploader: user?._id,
+      };
+      setTodoList([...todoList, newLink]);
       setInputValue("");
     }
   };
@@ -26,14 +32,27 @@ const AddAttachmentsInput = ({ todoList, setTodoList }) => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await axiosInstance.post("/api/files/upload-file", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      const response = await axiosInstance.post(
+        "/api/files/upload-file",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
+      // AddAttachmentsInput.jsx içindeki handleFileUpload fonksiyonu
       if (response.data.fileUrl) {
-        setTodoList([...todoList, response.data.fileUrl]);
+        // Modeldeki isimlerle (fileName, storagePath vb.) eşleşmesi lazım
+        const newFile = {
+          fileName: response.data.fileName || file.name,
+          storagePath: response.data.fileUrl,
+          fileSize: response.data.fileSize || file.size,
+          uploader: user?._id, // Context'ten gelen kullanıcı ID'si
+        };
+
+        setTodoList([...todoList, newFile]); // Artık diziye obje atıyoruz
         toast.success("File uploaded successfully!");
       }
     } catch (error) {
@@ -92,7 +111,11 @@ const AddAttachmentsInput = ({ todoList, setTodoList }) => {
             key={index}
             className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded px-3 py-2 mb-2"
           >
-            <p className="text-xs text-gray-700 truncate flex-1">{item}</p>
+            {/* Attachment List kısmındaki p etiketi */}
+            <p className="text-xs text-gray-700 truncate flex-1">
+              {item.fileName}{" "}
+              {/* item artık obje olduğu için .fileName diyoruz */}
+            </p>
             <button
               type="button"
               onClick={() => handleRemove(index)}

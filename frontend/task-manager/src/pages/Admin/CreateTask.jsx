@@ -58,6 +58,8 @@ const CreateTask = () => {
   };
 
   // Create Task
+  // CreateTask fonksiyonu içinde
+  // Create Task
   const createTask = async () => {
     setLoading(true);
 
@@ -67,18 +69,35 @@ const CreateTask = () => {
         completed: false,
       }));
 
-      // User için otomatik kendine ata
       const assignedToData =
         user?.role === "admin" ? taskData.assignedTo : [user._id];
 
+      // ✅ Attachments'ı düzgün formatlayalım
+      const formattedAttachments = taskData.attachments.map((item) => ({
+        fileName: item.fileName || "File",
+        storagePath: item.storagePath,
+        fileSize: item.fileSize || 0,
+      }));
+
       const response = await axiosInstance.post(API_PATHS.TASKS.CREATE_TASK, {
-        ...taskData,
+        title: taskData.title,
+        description: taskData.description,
+        priority: taskData.priority,
         assignedTo: assignedToData,
         dueDate: new Date(taskData.dueDate).toISOString(),
         todoChecklist: todoList,
+        attachments: formattedAttachments,
       });
+
       toast.success("Task created successfully!");
       clearData();
+
+      // ✅ Task oluşturduktan sonra tasks sayfasına yönlendir
+      if (user?.role === "admin") {
+        navigate("/admin/tasks");
+      } else {
+        navigate("/user/tasks");
+      }
     } catch (error) {
       console.error("Error creating task:", error);
       toast.error(error.response?.data?.message || "Failed to create task");
@@ -87,6 +106,8 @@ const CreateTask = () => {
     }
   };
 
+  // Update Task
+  // Update Task
   // Update Task
   // Update Task
   const updateTask = async () => {
@@ -105,63 +126,48 @@ const CreateTask = () => {
         };
       });
 
-      // ✅ User için assignedTo'yu koruma
-      const assignedToData =
-        user?.role === "admin" ? taskData.assignedTo : [user._id];
+      // ✅ Attachments'ı düzgün formatlayalım
+      const formattedAttachments = taskData.attachments.map((item) => ({
+        fileName: item.fileName || "File",
+        storagePath: item.storagePath,
+        fileSize: item.fileSize || 0,
+        uploader: item.uploader, // Varsa koru
+      }));
+
+      // ✅ Request body'yi hazırla
+      const requestBody = {
+        title: taskData.title,
+        description: taskData.description,
+        priority: taskData.priority,
+        dueDate: new Date(taskData.dueDate).toISOString(),
+        todoChecklist: todoList,
+        attachments: formattedAttachments,
+      };
+
+      // ✅ SADECE ADMIN assignedTo gönderebilir
+      if (user?.role === "admin") {
+        requestBody.assignedTo = taskData.assignedTo;
+      }
 
       const response = await axiosInstance.put(
         API_PATHS.TASKS.UPDATE_TASK(taskId),
-        {
-          ...taskData,
-          assignedTo: assignedToData,
-          dueDate: new Date(taskData.dueDate).toISOString(),
-          todoChecklist: todoList,
-        }
+        requestBody
       );
+
       toast.success("Task updated successfully!");
+
+      if (user?.role === "admin") {
+        navigate("/admin/tasks");
+      } else {
+        // Eğer rolün 'member' ise App.jsx'teki yola gönder
+        navigate("/user/tasks");
+      }
     } catch (error) {
       console.error("Error updating task:", error);
       toast.error(error.response?.data?.message || "Failed to update task");
     } finally {
       setLoading(false);
     }
-  };
-  const handleSubmit = async () => {
-    setError(null);
-
-    // Input validation
-    if (!taskData.title.trim()) {
-      setError("Title is required.");
-      return;
-    }
-
-    if (!taskData.description.trim()) {
-      setError("Description is required.");
-      return;
-    }
-
-    if (!taskData.dueDate) {
-      setError("Due date is required.");
-      return;
-    }
-
-    // ✅ Admin için assignedTo kontrolü, user için gerek yok
-    if (user?.role === "admin" && taskData.assignedTo?.length === 0) {
-      setError("Task not assigned to any member");
-      return;
-    }
-
-    if (taskData.todoChecklist?.length === 0) {
-      setError("Add at least one todo task");
-      return;
-    }
-
-    if (taskId) {
-      updateTask();
-      return;
-    }
-
-    createTask();
   };
 
   const getTaskDetailsByID = useCallback(async () => {
@@ -192,11 +198,46 @@ const CreateTask = () => {
     }
   }, [taskId]);
 
+  const handleSubmit = async () => {
+    setError(null);
+
+    // Input validation
+    if (!taskData.title.trim()) {
+      setError("Title is required.");
+      return;
+    }
+
+    if (!taskData.description.trim()) {
+      setError("Description is required.");
+      return;
+    }
+
+    if (!taskData.dueDate) {
+      setError("Due date is required.");
+      return;
+    }
+    if (user?.role === "admin" && taskData.assignedTo?.length === 0) {
+      setError("Task not assigned to any member");
+      return;
+    }
+
+    if (taskData.todoChecklist?.length === 0) {
+      setError("Add at least one todo task");
+      return;
+    }
+
+    if (taskId) {
+      updateTask();
+      return;
+    }
+
+    createTask();
+  };
+
   // Delete Task
   const deleteTask = async () => {
     try {
-      await axiosInstance.delete(API_PATHS.TASKS.DELETE_TASK(taskId));
-
+      await axiosInstance.delete(API_PATHS.TASKS.DELETE_TASK(taskId)); // Tetiği burası çeker
       setOpenDeleteAlert(false);
       toast.success("Task deleted successfully");
       navigate("/admin/tasks");
@@ -338,6 +379,7 @@ const CreateTask = () => {
               <AddAttachmentsInput
                 todoList={taskData?.attachments}
                 setTodoList={(value) => handleValueChange("attachments", value)}
+                user={user} // Bunu ekledik
               />
             </div>
 

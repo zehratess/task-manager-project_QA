@@ -6,12 +6,9 @@ const Task = require("../models/Task");
 const getTasks = async (req, res) => {
   try {
     const { status } = req.query;
-    
+
     const filter = {
-      $or: [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ]
+      $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
     };
 
     // ✅ Status filter
@@ -23,36 +20,44 @@ const getTasks = async (req, res) => {
     if (status === "Upcoming") {
       const threeDaysLater = new Date();
       threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-      
+
       filter.status = { $ne: "Completed" };
       filter.dueDate = {
         $gte: new Date(),
-        $lte: threeDaysLater
+        $lte: threeDaysLater,
       };
     }
-    
+
     const tasksFromDb = await Task.find(filter).populate(
       "assignedTo",
       "name email profileImageUrl"
     );
 
     const tasks = tasksFromDb.map((task) => {
-      const completedCount = (task.todoChecklist || []).filter((item) => item.completed).length;
+      const completedCount = (task.todoChecklist || []).filter(
+        (item) => item.completed
+      ).length;
       return { ...task._doc, completedTodoCount: completedCount };
     });
 
     const userFilter = {
-      $or: [
-        { createdBy: req.user._id },
-        { assignedTo: req.user._id }
-      ]
+      $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
     };
 
     const allTasks = await Task.countDocuments(userFilter);
-    const pendingTasks = await Task.countDocuments({ ...userFilter, status: "Pending" });
-    const inProgressTasks = await Task.countDocuments({ ...userFilter, status: "In Progress" });
-    const completedTasks = await Task.countDocuments({ ...userFilter, status: "Completed" });
-    
+    const pendingTasks = await Task.countDocuments({
+      ...userFilter,
+      status: "Pending",
+    });
+    const inProgressTasks = await Task.countDocuments({
+      ...userFilter,
+      status: "In Progress",
+    });
+    const completedTasks = await Task.countDocuments({
+      ...userFilter,
+      status: "Completed",
+    });
+
     // ✅ Upcoming count
     const threeDaysLater = new Date();
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
@@ -61,8 +66,8 @@ const getTasks = async (req, res) => {
       status: { $ne: "Completed" },
       dueDate: {
         $gte: new Date(),
-        $lte: threeDaysLater
-      }
+        $lte: threeDaysLater,
+      },
     });
 
     res.json({
@@ -113,27 +118,32 @@ const getTaskById = async (req, res) => {
 //@desc create a new task
 //@route POST /api/tasks
 //@access private
+// taskController.js -> createTask fonksiyonu içi
 const createTask = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      priority,
-      dueDate,
-      assignedTo,
-      attachments,
-      todoChecklist,
-    } = req.body;
+    const { title, description, priority, dueDate, assignedTo, attachments, todoChecklist } = req.body;
 
-    // ✅ User ise sadece kendine atayabilir, Admin herkese atayabilir
-    const assignedToFinal =
-      req.user.role !== "admin" ? [req.user._id] : assignedTo;
+    // ✅ Attachments'ı düzgün formatlayalım
+    const formattedAttachments = (attachments || []).map(file => {
+      // Eğer string geldiyse (sadece URL), objeye çevir
+      if (typeof file === 'string') {
+        return {
+          fileName: "External Link",
+          storagePath: file,
+          fileSize: 0,
+          uploader: req.user._id
+        };
+      }
+      // Eğer obje geldiyse, uploader'ı ekle
+      return {
+        fileName: file.fileName || "File",
+        storagePath: file.storagePath,
+        fileSize: file.fileSize || 0,
+        uploader: req.user._id
+      };
+    });
 
-    if (!Array.isArray(assignedToFinal)) {
-      return res
-        .status(400)
-        .json({ message: "assignedTo must be an array of user IDs" });
-    }
+    const assignedToFinal = req.user.role !== "admin" ? [req.user._id] : assignedTo;
 
     const task = await Task.create({
       title,
@@ -142,12 +152,13 @@ const createTask = async (req, res) => {
       dueDate,
       assignedTo: assignedToFinal,
       createdBy: req.user._id,
-      attachments,
+      attachments: formattedAttachments,
       todoChecklist,
     });
 
     res.status(201).json({ message: "Task created successfully", task });
   } catch (error) {
+    console.error("TASK CREATE ERROR:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -161,28 +172,53 @@ const updateTask = async (req, res) => {
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Sadece task'ı oluşturan güncelleyebilir
-    if (task.createdBy.toString() !== req.user._id.toString()) {
+    // ✅ Task'ı oluşturan veya assigned olan güncelleyebilir
+    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isAssigned = task.assignedTo.some(
+      (userId) => userId.toString() === req.user._id.toString()
+    );
+
+    if (!isCreator && !isAssigned) {
       return res
         .status(403)
         .json({ message: "Not authorized to update this task" });
     }
 
-    // User ise assignedTo değiştiremez
-    if (req.user.role !== "admin" && req.body.assignedTo) {
-      return res
-        .status(403)
-        .json({ message: "Users cannot change task assignment" });
-    }
-
+    // ✅ Update işlemleri
     task.title = req.body.title || task.title;
     task.description = req.body.description || task.description;
     task.priority = req.body.priority || task.priority;
     task.dueDate = req.body.dueDate || task.dueDate;
     task.todoChecklist = req.body.todoChecklist || task.todoChecklist;
-    task.attachments = req.body.attachments || task.attachments;
 
+    // ✅ Attachments'ı düzgün formatlayalım
+    if (req.body.attachments) {
+      task.attachments = (req.body.attachments || []).map(file => {
+        if (typeof file === 'string') {
+          return {
+            fileName: "External Link",
+            storagePath: file,
+            fileSize: 0,
+            uploader: req.user._id
+          };
+        }
+        return {
+          fileName: file.fileName || "File",
+          storagePath: file.storagePath,
+          fileSize: file.fileSize || 0,
+          uploader: file.uploader || req.user._id
+        };
+      });
+    }
+
+    // ✅ SADECE ADMIN assignedTo değiştirebilir
     if (req.body.assignedTo) {
+      if (req.user.role !== "admin") {
+        return res
+          .status(403)
+          .json({ message: "Only admins can change task assignment" });
+      }
+      
       if (!Array.isArray(req.body.assignedTo)) {
         return res
           .status(400)
@@ -194,6 +230,7 @@ const updateTask = async (req, res) => {
     const updatedTask = await task.save();
     res.json({ message: "Task updated successfully", updatedTask });
   } catch (error) {
+    console.error("UPDATE TASK ERROR:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -201,22 +238,39 @@ const updateTask = async (req, res) => {
 //@desc delete a task
 //@route DELETE /api/tasks/:id
 //@access private
+const fs = require("fs"); // Dosya sistemine erişmek için
+const path = require("path");
+
 const deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // Sadece task'ı oluşturan silebilir
     if (task.createdBy.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to delete this task" });
+      return res.status(403).json({ message: "Not authorized to delete this task" });
+    }
+
+    // ✅ Fiziksel dosyaları sil
+    if (task.attachments && task.attachments.length > 0) {
+      task.attachments.forEach((attachment) => {
+        // Sadece upload edilmiş dosyaları sil (external link'leri değil)
+        if (attachment.storagePath && attachment.storagePath.includes('/uploads/')) {
+          const fileName = attachment.storagePath.split("/").pop();
+          const filePath = path.join(__dirname, "../uploads/files/", fileName);
+
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            console.log(`${fileName} başarıyla silindi.`);
+          }
+        }
+      });
     }
 
     await task.deleteOne();
-    res.json({ message: "Task deleted successfully" });
+    res.json({ message: "Task and its attachments deleted successfully" });
   } catch (error) {
+    console.error("DELETE TASK ERROR:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
@@ -380,7 +434,13 @@ const getDashboardData = async (req, res) => {
       .select("title status priority dueDate createdAt");
 
     res.status(200).json({
-      statistics: { totalTasks, pendingTasks, completedTasks, overdueTasks, upcomingTasks },
+      statistics: {
+        totalTasks,
+        pendingTasks,
+        completedTasks,
+        overdueTasks,
+        upcomingTasks,
+      },
       charts: { taskDistribution, taskPriorityLevels },
       recentTasks,
     });
