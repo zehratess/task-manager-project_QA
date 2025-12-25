@@ -14,8 +14,9 @@ import CustomPieChart from "../../components/Charts/CustomPieCharts";
 import CustomBarChart from "../../components/Charts/CustomBarChart";
 import { IoMdCard } from "react-icons/io";
 import { toast } from "react-hot-toast";
+import TaskCard from "../../components/Cards/TaskCard";
 
-const COLORS = ["#8D51FF", "#00B8DB", "#7BCE00"];
+const COLORS = ["#8D51FF", "#00B8DB", "#7BCE00", "#FF4560"];
 
 const UserDashboard = () => {
   useUserAuth();
@@ -37,6 +38,7 @@ const UserDashboard = () => {
       { status: "Pending", count: taskDistribution?.Pending || 0 },
       { status: "In Progress", count: taskDistribution?.InProgress || 0 },
       { status: "Completed", count: taskDistribution?.Completed || 0 },
+      { status: "Overdue", count: data?.statistics?.overdueTasks || 0 }, // ✅ Bunu ekledik
     ];
 
     setPieChartData(taskDistributionData);
@@ -57,7 +59,11 @@ const UserDashboard = () => {
       );
       if (response.data) {
         setDashboardData(response.data);
-        prepareChartData(response.data?.charts || null);
+        prepareChartData({
+        taskDistribution: response.data?.charts?.taskDistribution,
+        taskPriorityLevels: response.data?.charts?.taskPriorityLevels,
+        statistics: response.data?.statistics // statistics'i ekle
+      });
       }
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -86,7 +92,7 @@ const UserDashboard = () => {
       <div className="card my-5">
         <div>
           <div className="col-span-3">
-            <h2 className="text-xl md:text-2xl">
+            <h2 className="text-xl md:text-2xl font-semibold">
               Hello, {user?.name}. What's going on?
             </h2>
             <p className="text-xs md:text-[13px] text-gray-400 mt-1.5">
@@ -95,61 +101,72 @@ const UserDashboard = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mt-5">
+        {/* md:grid-cols-5 yaptık ki 5 kart sığsın */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-3 md:gap-6 mt-5">
           <InfoCard
             icon={<IoMdCard />}
             label="Total Tasks"
             value={addThousandsSeparator(totalTasksValue)}
-            color="bg-primary"
+            color="bg-blue-300" // Birincil renk
           />
           <InfoCard
             icon={<IoMdCard />}
-            label="Pending Tasks"
+            label="Pending"
             value={addThousandsSeparator(
               dashboardData?.charts?.taskDistribution?.Pending || 0
             )}
-            color="bg-violet-500"
+            color="bg-violet-500" // Mor
           />
           <InfoCard
             icon={<IoMdCard />}
-            label="In Progress Tasks"
+            label="In Progress"
             value={addThousandsSeparator(
               dashboardData?.charts?.taskDistribution?.InProgress || 0
             )}
-            color="bg-cyan-500"
+            color="bg-cyan-500" // Mavi
           />
           <InfoCard
             icon={<IoMdCard />}
-            label="Completed Tasks"
+            label="Completed"
             value={addThousandsSeparator(
               dashboardData?.charts?.taskDistribution?.Completed || 0
             )}
-            color="bg-lime-500"
+            color="bg-green-500" // Yeşil
+          />
+          {/* Overdue Kartı */}
+          <InfoCard
+            icon={<IoMdCard />}
+            label="Overdue"
+            value={addThousandsSeparator(
+              dashboardData?.statistics?.overdueTasks || 0
+            )}
+            color="bg-red-500" // Kırmızı
           />
         </div>
       </div>
-      {dashboardData?.statistics?.upcomingTasks > 0 && (
-        <button
-          onClick={() =>
-            navigate("/user/tasks", { state: { filterDueSoon: true } })
-          }
-          className="w-full bg-white/30 border-l-4 border-orange-300 p-4 mb-5 rounded hover:bg-white/40 transition-all duration-200 cursor-pointer group"
-        >
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
+
+      {/* BANNER ALANI: Ayrı butonlar olarak düzelttik */}
+      <div className="space-y-3 mb-5">
+        {/* 1. UPCOMING BANNER (Turuncu) */}
+        {dashboardData?.statistics?.upcomingTasks > 0 && (
+          <button
+            onClick={() =>
+              navigate("/user/tasks", { state: { filterDueSoon: true } })
+            }
+            className="w-full bg-white/30 border-l-4 border-orange-300 p-4 rounded hover:bg-white/40 transition-all cursor-pointer group flex items-center justify-between"
+          >
+            <div className="flex items-center">
               <svg
-                className="h-5 w-5 text-orange-500 group-hover:text-orange-600 transition-colors"
+                className="h-5 w-5 text-orange-500 mr-3"
                 viewBox="0 0 20 20"
                 fill="currentColor"
               >
                 <path
                   fillRule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1-1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                   clipRule="evenodd"
                 />
               </svg>
-            </div>
-            <div className="ml-3 flex-1 flex items-center justify-between">
               <p className="text-sm font-medium text-orange-800">
                 You have{" "}
                 <span className="font-bold">
@@ -157,23 +174,33 @@ const UserDashboard = () => {
                 </span>{" "}
                 task(s) due in the next 3 days!
               </p>
-              <svg
-                className="h-5 w-5 text-orange-600 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
             </div>
-          </div>
-        </button>
-      )}
+            <LuArrowRight className="text-orange-600 group-hover:translate-x-1 transition-transform" />
+          </button>
+        )}
+
+        {/* 2. OVERDUE BANNER (Kırmızı) */}
+        {dashboardData?.statistics?.overdueTasks > 0 && (
+          <button
+            onClick={() =>
+              navigate("/user/tasks", { state: { filterOverdue: true } })
+            }
+            className="w-full bg-rose-50/30 border-l-4 border-rose-500 p-4 rounded hover:bg-rose/40 transition-all cursor-pointer group flex items-center justify-between"
+          >
+            <div className="flex items-center">
+              <span className="text-rose-600 font-bold mr-3 text-lg">⚠️</span>
+              <p className="text-sm font-medium text-rose-800">
+                Attention! You have{" "}
+                <span className="font-bold">
+                  {dashboardData.statistics.overdueTasks}
+                </span>{" "}
+                overdue task(s)!
+              </p>
+            </div>
+            <LuArrowRight className="text-rose-600 group-hover:translate-x-1 transition-transform" />
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
         <div>
           <div className="card">

@@ -85,7 +85,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-3 md:gap-6 mt-5">
           <InfoCard
             icon={<IoMdCard />}
             label="Total Tasks"
@@ -130,8 +130,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/*eğer grid yapısı çalışmazsa claude önerisi(124-160 satırlar arasına ekle):*/}
-{/* Chart'lar - Yan yana */}
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-4 md:my-6">
   <div className="card">
     <div className="flex items-center justify-between">

@@ -28,6 +28,11 @@ const getTasks = async (req, res) => {
       };
     }
 
+    if (status === "Overdue") {
+      filter.dueDate = { $lt: new Date() }; // Bugünden küçük tarihler
+      filter.status = { $ne: "Completed" }; // Tamamlanmamış olanlar
+    }
+
     const tasksFromDb = await Task.find(filter).populate(
       "assignedTo",
       "name email profileImageUrl"
@@ -69,6 +74,12 @@ const getTasks = async (req, res) => {
         $lte: threeDaysLater,
       },
     });
+    
+    const overdueTasks = await Task.countDocuments({
+      ...userFilter,
+      status: { $ne: "Completed" },
+      dueDate: { $lt: new Date() },
+    });
 
     res.json({
       tasks,
@@ -78,6 +89,7 @@ const getTasks = async (req, res) => {
         inProgressTasks,
         completedTasks,
         upcomingTasks, // ✅ Yeni
+        overdueTasks,
       },
     });
   } catch (error) {
@@ -121,17 +133,25 @@ const getTaskById = async (req, res) => {
 // taskController.js -> createTask fonksiyonu içi
 const createTask = async (req, res) => {
   try {
-    const { title, description, priority, dueDate, assignedTo, attachments, todoChecklist } = req.body;
+    const {
+      title,
+      description,
+      priority,
+      dueDate,
+      assignedTo,
+      attachments,
+      todoChecklist,
+    } = req.body;
 
     // ✅ Attachments'ı düzgün formatlayalım
-    const formattedAttachments = (attachments || []).map(file => {
+    const formattedAttachments = (attachments || []).map((file) => {
       // Eğer string geldiyse (sadece URL), objeye çevir
-      if (typeof file === 'string') {
+      if (typeof file === "string") {
         return {
           fileName: "External Link",
           storagePath: file,
           fileSize: 0,
-          uploader: req.user._id
+          uploader: req.user._id,
         };
       }
       // Eğer obje geldiyse, uploader'ı ekle
@@ -139,11 +159,12 @@ const createTask = async (req, res) => {
         fileName: file.fileName || "File",
         storagePath: file.storagePath,
         fileSize: file.fileSize || 0,
-        uploader: req.user._id
+        uploader: req.user._id,
       };
     });
 
-    const assignedToFinal = req.user.role !== "admin" ? [req.user._id] : assignedTo;
+    const assignedToFinal =
+      req.user.role !== "admin" ? [req.user._id] : assignedTo;
 
     const task = await Task.create({
       title,
@@ -193,20 +214,20 @@ const updateTask = async (req, res) => {
 
     // ✅ Attachments'ı düzgün formatlayalım
     if (req.body.attachments) {
-      task.attachments = (req.body.attachments || []).map(file => {
-        if (typeof file === 'string') {
+      task.attachments = (req.body.attachments || []).map((file) => {
+        if (typeof file === "string") {
           return {
             fileName: "External Link",
             storagePath: file,
             fileSize: 0,
-            uploader: req.user._id
+            uploader: req.user._id,
           };
         }
         return {
           fileName: file.fileName || "File",
           storagePath: file.storagePath,
           fileSize: file.fileSize || 0,
-          uploader: file.uploader || req.user._id
+          uploader: file.uploader || req.user._id,
         };
       });
     }
@@ -218,7 +239,7 @@ const updateTask = async (req, res) => {
           .status(403)
           .json({ message: "Only admins can change task assignment" });
       }
-      
+
       if (!Array.isArray(req.body.assignedTo)) {
         return res
           .status(400)
@@ -248,14 +269,19 @@ const deleteTask = async (req, res) => {
     if (!task) return res.status(404).json({ message: "Task not found" });
 
     if (task.createdBy.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: "Not authorized to delete this task" });
+      return res
+        .status(403)
+        .json({ message: "Not authorized to delete this task" });
     }
 
     // ✅ Fiziksel dosyaları sil
     if (task.attachments && task.attachments.length > 0) {
       task.attachments.forEach((attachment) => {
         // Sadece upload edilmiş dosyaları sil (external link'leri değil)
-        if (attachment.storagePath && attachment.storagePath.includes('/uploads/')) {
+        if (
+          attachment.storagePath &&
+          attachment.storagePath.includes("/uploads/")
+        ) {
           const fileName = attachment.storagePath.split("/").pop();
           const filePath = path.join(__dirname, "../uploads/files/", fileName);
 

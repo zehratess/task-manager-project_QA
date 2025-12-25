@@ -13,7 +13,11 @@ const MyTasks = () => {
   const navigate = useNavigate();
 
   const [filterStatus, setFilterStatus] = useState(
-    location.state?.filterDueSoon ? "Upcoming" : "All"
+    location.state?.filterDueSoon
+      ? "Upcoming"
+      : location.state?.filterOverdue
+      ? "Overdue"
+      : "All" // Overdue desteği eklendi
   );
   const [allTasks, setAllTasks] = useState([]);
   const [tabs, setTabs] = useState([]);
@@ -42,6 +46,7 @@ const MyTasks = () => {
         { label: "In Progress", count: statusSummary?.inProgressTasks || 0 },
         { label: "Completed", count: statusSummary?.completedTasks || 0 },
         { label: "Upcoming", count: statusSummary?.upcomingTasks || 0 }, // ✅ Yeni
+        { label: "Overdue", count: statusSummary?.overdueTasks || 0 },
       ];
 
       setTabs(statusArray);
