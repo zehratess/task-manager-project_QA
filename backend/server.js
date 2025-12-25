@@ -2,9 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const { connect } = require("http2");
 const connectDB = require("./config/db");
-
 const mongoose = require('mongoose');
 
 const authRoutes = require("./routes/authRoutes")
@@ -19,16 +17,9 @@ app.use(cors({
     origin: process.env.CLIENT_URL || "*",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    })
-);
+}));
 
-//connect db
-connectDB();
-
-//Middleware
 app.use(express.json());
-
-// ✅ BURAYI EKLE - Static files için (route'lardan ÖNCE)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ROUTES
@@ -38,14 +29,15 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/files", fileRoutes);
 
-// MongoDB bağlantısı
-mongoose.connect(process.env.MONGO_URI, {
-  serverSelectionTimeoutMS: 20000,
-  socketTimeoutMS: 45000,
-})
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+// ✅ DÜZELTME: Eğer test ortamında değilsek DB'ye bağlan ve server'ı başlat
+if (process.env.NODE_ENV !== 'test') {
+    // Sadece ana server çalışırken bu bağlantıyı kur
+    connectDB();
 
-//Start Server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    const PORT = process.env.PORT || 8000;
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+// ✅ ÖNEMLİ: Manuel mongoose.connect kısmını sildik çünkü çakışma yaratıyordu
+
+module.exports = app; // Testlerin (supertest) kullanabilmesi için şart
