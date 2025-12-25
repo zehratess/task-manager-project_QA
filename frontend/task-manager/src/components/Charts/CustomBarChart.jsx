@@ -58,8 +58,9 @@ const CustomBarChart = ({ data }) => {
             stroke="#cbd5e1"
           />
 
-          <YAxis 
-            tick={{ fontSize: 12, fill: "#64748b" }} 
+          <YAxis
+            allowDecimals={false} // ✅ Aradaki küsuratlı sayıları siler, sadece tam sayıları gösterir.
+            tick={{ fontSize: 12, fill: "#64748b" }}
             stroke="#cbd5e1"
           />
 
@@ -68,17 +69,9 @@ const CustomBarChart = ({ data }) => {
             cursor={{ fill: "rgba(99, 102, 241, 0.1)" }}
           />
 
-          <Bar
-            dataKey="count"
-            nameKey="priority"
-            radius={[10, 10, 0, 0]}
-          >
+          <Bar dataKey="count" nameKey="priority" radius={[10, 10, 0, 0]}>
             {data.map((entry, index) => (
-              <Cell 
-                key={index} 
-                fill={getBarColor(entry)}
-                opacity={0.85}
-              />
+              <Cell key={index} fill={getBarColor(entry)} opacity={0.85} />
             ))}
           </Bar>
         </BarChart>
