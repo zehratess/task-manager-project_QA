@@ -5,7 +5,7 @@ const { protect } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
-// ✅ Dosya storage ayarı
+//  Dosya storage ayarı
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/files/'); // ✅ uploads/files/ klasörüne kaydet
@@ -16,7 +16,7 @@ const storage = multer.diskStorage({
   },
 });
 
-// ✅ Dosya filter (tüm dosya tipleri)
+//  Dosya filter (tüm dosya tipleri)
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     'application/pdf',
@@ -43,7 +43,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
 });
 
-// ✅ File upload endpoint
+//  File upload endpoint
 router.post("/upload-file", protect, upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });

@@ -57,7 +57,7 @@ describe("Task API Tests", () => {
     await mongoose.connection.close();
   });
 
-  // ✅ TEST 1: Get All Tasks
+  //  TEST 1: Get All Tasks
   describe("GET /api/tasks", () => {
     it("should return all tasks for authenticated user", async () => {
       const res = await request(app)
@@ -75,7 +75,7 @@ describe("Task API Tests", () => {
     });
   });
 
-  // ✅ TEST 2: Create Task
+  //  TEST 2: Create Task
   describe("POST /api/tasks", () => {
     it("should create a new task (admin)", async () => {
       const res = await request(app)
@@ -107,7 +107,7 @@ describe("Task API Tests", () => {
     });
   });
 
-  // ✅ TEST 3: Get Task by ID
+  // TEST 3: Get Task by ID
   describe("GET /api/tasks/:id", () => {
     it("should return task by ID", async () => {
       const res = await request(app)
@@ -127,7 +127,7 @@ describe("Task API Tests", () => {
     });
   });
 
-  // ✅ TEST 4: Update Task
+  //  TEST 4: Update Task
   describe("PUT /api/tasks/:id", () => {
     it("should update task", async () => {
     const res = await request(app)
@@ -141,7 +141,7 @@ describe("Task API Tests", () => {
 });
   });
 
-  // ✅ TEST 5: Update Task Status
+  //  TEST 5: Update Task Status
   describe("PUT /api/tasks/:id/status", () => {
     it("should update task status", async () => {
       const res = await request(app)
@@ -154,7 +154,7 @@ describe("Task API Tests", () => {
     });
   });
 
-  // ✅ TEST 6: Update Checklist
+  //  TEST 6: Update Checklist
   describe("PUT /api/tasks/:id/todo", () => {
     it("should update todo checklist", async () => {
       const res = await request(app)
@@ -169,7 +169,7 @@ describe("Task API Tests", () => {
     });
   });
 
-  // ✅ TEST 7: Delete Task
+  //  TEST 7: Delete Task
   describe("DELETE /api/tasks/:id", () => {
     it("should delete task", async () => {
       const res = await request(app)
@@ -189,7 +189,7 @@ describe("Task API Tests", () => {
     });
   });
 
-  // ✅ TEST 8: Dashboard Data
+  //  TEST 8: Dashboard Data
   describe("GET /api/tasks/dashboard-data", () => {
     it("should return dashboard statistics", async () => {
       const res = await request(app)
