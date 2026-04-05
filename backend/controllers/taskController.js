@@ -172,6 +172,32 @@ const createTask = async (req, res) => {
       todoChecklist,
     } = req.body;
 
+        // validation test case de fail yemeyelim diye 
+    if (!title || !title.trim()) {
+      return res.status(400).json({ message: "Title is required" });
+    }
+
+    if (!dueDate) {
+      return res.status(400).json({ message: "Due date is required" });
+    }
+
+    const parsedDueDate = new Date(dueDate);
+    if (Number.isNaN(parsedDueDate.getTime())) {
+      return res.status(400).json({ message: "Due date is invalid" });
+    }
+
+    const now = new Date();
+    if (parsedDueDate < now) {
+      return res.status(400).json({ message: "Due date cannot be in the past" });
+    }
+
+    const allowedPriorities = ["Low", "Medium", "High"];
+    if (priority && !allowedPriorities.includes(priority)) {
+      return res.status(400).json({
+        message: "Priority must be one of: Low, Medium, High",
+      });
+    }
+
     // ✅ Attachments'ı düzgün formatlayalım
     const formattedAttachments = (attachments || []).map((file) => {
       // Eğer string geldiyse (sadece URL), objeye çevir
@@ -196,11 +222,11 @@ const createTask = async (req, res) => {
       req.user.role !== "admin" ? [req.user._id] : assignedTo;
 
     const task = await Task.create({
-      title,
+      title : title.trim(),
       description,
       priority,
-      category: category || "Other", // ✅ Default category
-      dueDate,
+      category: category || "Other", 
+      dueDate : parsedDueDate,
       assignedTo: assignedToFinal,
       createdBy: req.user._id,
       attachments: formattedAttachments,
