@@ -1,6 +1,6 @@
 const Task = require("../models/Task");
 const User = require("../models/User");
-const bcrypt = require("bcryptjs");
+// bcrypt import işlemi yapılacaksa eklenebilir, ancak bu kod parçacığında kullanılmıyor. Bu nedenle şu anda gerekli değil.
 
 //@desc get all users (admin only)
 //@route GET/api/users
