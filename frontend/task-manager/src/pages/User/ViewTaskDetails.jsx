@@ -7,6 +7,7 @@ import AvatarGroup from "../../components/AvatarGroup";
 import moment from "moment";
 import { LuSquareArrowOutUpRight } from "react-icons/lu";
 import { toast } from "react-hot-toast";
+import propTypes from 'prop-types';
 
 const ViewTaskDetails = () => {
   const { id } = useParams();
@@ -34,11 +35,8 @@ const ViewTaskDetails = () => {
 
       if (response.data) {
         setTask(response.data);
-        console.log("Task data:", response.data); // Debug için
-        console.log("Task createdBy:", response.data.createdBy); // Debug için
       }
     } catch (error) {
-      console.error("Error fetching task details:", error);
       toast.error("Failed to fetch task details. Please try again.");
     }
   }, [id]);
@@ -49,11 +47,9 @@ const ViewTaskDetails = () => {
       const response = await axiosInstance.get(API_PATHS.AUTH.GET_PROFILE);
       if (response.data) {
         setCurrentUser(response.data);
-        console.log("Current user:", response.data); // Debug için
-        console.log("Current user ID:", response.data._id); // Debug için
       }
     } catch (error) {
-      console.error("Error fetching user info:", error);
+      toast.error("Failed to fetch user info. Please try again.");
     }
   }, []);
 
@@ -79,7 +75,6 @@ const ViewTaskDetails = () => {
         todoChecklist[index].completed = !todoChecklist[index].completed;
       }
     } catch (error) {
-      console.error("Error updating todo checklist:", error);
       toast.error("Failed to update checklist. Please try again.");
       // Revert the toggle on error
       todoChecklist[index].completed = !todoChecklist[index].completed;
@@ -89,7 +84,7 @@ const ViewTaskDetails = () => {
 
   // Handle attachment link click
   const handleLinkClick = (link) => {
-    // ✅ Eğer obje ise storagePath'i al
+    // Eğer obje ise storagePath'i al
     const url = typeof link === "object" ? link.storagePath : link;
 
     // External link mi yoksa upload edilmiş dosya mı?
@@ -190,9 +185,9 @@ const ViewTaskDetails = () => {
                   {task?.attachments?.map((attachment, index) => (
                     <Attachment
                       key={`link_${index}`}
-                      link={attachment} // ✅ Tüm objeyi gönder
+                      link={attachment} 
                       index={index}
-                      onClick={() => handleLinkClick(attachment)} // ✅ Tüm objeyi gönder
+                      onClick={() => handleLinkClick(attachment)} 
                     />
                   ))}
                 </div>
@@ -215,6 +210,30 @@ const ViewTaskDetails = () => {
       </div>
     </DashboardLayout>
   );
+};
+
+// Alt Bileşenler İçin PropTypes Tanımlamaları
+InfoBox.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+};
+
+TodoCheckList.propTypes = {
+  text: PropTypes.string.isRequired,
+  isChecked: PropTypes.bool,
+  onChange: PropTypes.func.isRequired
+};
+
+Attachment.propTypes = {
+  link: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.shape({
+      storagePath: PropTypes.string,
+      fileName: PropTypes.string
+    })
+  ]).isRequired,
+  index: PropTypes.number.isRequired,
+  onClick: PropTypes.func.isRequired
 };
 
 export default ViewTaskDetails;
@@ -246,21 +265,21 @@ const TodoCheckList = ({ text, isChecked, onChange }) => {
 };
 
 const Attachment = ({ link, index, onClick }) => {
-  // ✅ Eğer link obje ise, storagePath'i al
+  // Eğer link obje ise, storagePath'i al
   const attachmentUrl = typeof link === "object" ? link.storagePath : link;
   const attachmentName = typeof link === "object" ? link.fileName : link;
 
   return (
     <div
       className="flex justify-between bg-gray-50 border border-gray-100 px-3 py-2 rounded-md mb-3 mt-2 cursor-pointer hover:bg-gray-100 transition-colors"
-      onClick={() => onClick(attachmentUrl)} // ✅ URL'i gönder
+      onClick={() => onClick(attachmentUrl)} //  URL'i gönder
     >
       <div className="flex-1 flex items-center gap-3">
         <span className="text-xs text-gray-400 font-semibold mr-2">
           {index < 9 ? `0${index + 1}` : index + 1}
         </span>
         <p className="text-xs text-black">{attachmentName}</p>{" "}
-        {/* ✅ İsmi göster */}
+        {/* İsmi göster */}
       </div>
 
       <LuSquareArrowOutUpRight className="text-lg text-gray-400" />

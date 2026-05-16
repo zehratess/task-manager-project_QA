@@ -1,9 +1,10 @@
-import React from 'react'
+import React from 'react';
+import PropTypes from 'prop-types';
 
 const InfoCard = ({icon, label, value, color}) => {
   return (
       <div className="flex items-center gap-3">
-        <div className={`w-2 md:w-2 h-3 md:h-5 ${color} rounded-full`} />
+        <div className={`w-2 h-3 md:h-5 ${color} rounded-full`} />
 
         <p className="text-xs md:text-[14px] text-gray-500">
           {label}{" "}
@@ -12,5 +13,12 @@ const InfoCard = ({icon, label, value, color}) => {
       </div>
   )
 }
+
+InfoCard.propTypes = {
+  icon: PropTypes.element, // İkon bir React elementi olabilir
+  label: PropTypes.string.isRequired, // Etiket zorunlu bir metindir
+  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired, // Değer metin veya sayı olabilir
+  color: PropTypes.string // Renk sınıfı bir metindir
+};
 
 export default InfoCard

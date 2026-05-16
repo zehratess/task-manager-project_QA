@@ -1,6 +1,42 @@
 import React from 'react'
 import defaultAvatar from "../../assets/images/default-avatar.jpeg";
 
+import PropTypes from 'prop-types'; // Aşama 3
+
+// STAT CARD
+
+const StatCard = ({ label, count, status }) => {
+    const getStatusTagColor = () => {
+        switch (status) {
+            case "In Progress":
+                return "text-cyan-500 bg-gray-50";
+
+            case "Completed":
+                return "text-indigo-500 bg-gray-50";
+
+            default:
+                return "text-violet-500 bg-gray-50";
+        }
+    };
+
+    return (
+        <div
+            className={`flex-1 text-[10px] font-medium ${getStatusTagColor()} px-4 py-0.5 rounded`}
+        >
+            <span className="text-[12px] font-semibold">{count}</span> <br /> {label}
+        </div>
+    );
+};
+
+// StatCard için tanımlama
+StatCard.propTypes = {
+    label: PropTypes.string.isRequired,
+    count: PropTypes.number.isRequired,
+    status: PropTypes.string.isRequired
+};
+
+// USERCARD
+
 const UserCard = ({ userInfo }) => {
 
     return (
@@ -42,29 +78,15 @@ const UserCard = ({ userInfo }) => {
     );
 };
 
-export default UserCard;
-
-
-const StatCard = ({ label, count, status }) => {
-    const getStatusTagColor = () => {
-        switch (status) {
-            case "In Progress":
-                return "text-cyan-500 bg-gray-50";
-
-            case "Completed":
-                return "text-indigo-500 bg-gray-50";
-
-            default:
-                return "text-violet-500 bg-gray-50";
-        }
-    };
-
-
-    return (
-        <div
-            className={"flex-1 text-[10px] font-medium ${getStatusTagColor()} px-4 py-0.5 rounded"}
-        >
-            <span className="text-[12px] font-semibold">{count}</span> <br /> {label}
-        </div>
-    );
+// UserCard için tanımlama (userInfo objesinin iç yapısını da doğrular)
+UserCard.propTypes = {
+    userInfo: PropTypes.shape({
+        name: PropTypes.string,
+        email: PropTypes.string,
+        pendingTasks: PropTypes.number,
+        inProgressTasks: PropTypes.number,
+        completedTasks: PropTypes.number
+    }).isRequired
 };
+
+export default UserCard;

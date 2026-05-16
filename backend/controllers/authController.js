@@ -64,18 +64,18 @@ const loginUser = async (req, res) => {
     // Kullanıcıyı bul
     const user = await User.findOne({ email }).maxTimeMS(20000);
     
-    // Kullanıcı yoksa hata ver ✅
+    // Kullanıcı yoksa hata ver 
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Şifre kontrolü ✅
+    // Şifre kontrolü 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // ✅ Başarılı login - token döndür
+    // Başarılı login - token döndür
     res.json({
       _id: user._id,
       name: user.name,
@@ -97,7 +97,7 @@ const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password").maxTimeMS(20000);
     
-    // Kullanıcı YOKSA hata ver ✅
+    // Kullanıcı YOKSA hata ver 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

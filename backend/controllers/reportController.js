@@ -2,6 +2,8 @@ const Task = require("../models/Task");
 const User = require("../models/User");
 const excelJS = require("exceljs");
 
+const INCREMENT_VALUE = 1;
+
 // @desc   Export all tasks as an Excel file
 // @route  GET /api/reports/export/tasks
 // @access Private (Admin)
@@ -80,20 +82,34 @@ const exportUsersReport = async (req, res) => {
     });
 
     userTasks.forEach((task) => {
-      if (task.assignedTo) {
-        task.assignedTo.forEach((assignedUser) => {
-          if (userTaskMap[assignedUser._id]) {
-            userTaskMap[assignedUser._id].taskCount += 1;
-            if (task.status === "Pending") {
-              userTaskMap[assignedUser._id].pendingTasks += 1;
-            } else if (task.status === "In Progress") {
-              userTaskMap[assignedUser._id].inProgressTasks += 1;
-            } else if (task.status === "Completed") {
-              userTaskMap[assignedUser._id].completedTasks += 1;
-            }
-          }
-        });
-      }
+      // Erken dönüş (Early Return): Atanmış kullanıcı yoksa döngünün bu adımını atla
+      if (!task.assignedTo) return;
+
+      task.assignedTo.forEach((assignedUser) => {
+        const userStats = userTaskMap[assignedUser._id];
+    
+        // Eğer haritada bu kullanıcı yoksa bir sonrakine geç
+        if (!userStats) return;
+
+        // Temel sayaç artırımı
+        userStats.taskCount += INCREMENT_VALUE;
+
+        // Karmaşık if-else yerine daha temiz switch yapısı
+        switch (task.status) {
+          case "Pending":
+            userStats.pendingTasks += INCREMENT_VALUE;
+            break;
+          case "In Progress":
+            userStats.inProgressTasks += INCREMENT_VALUE;
+            break;
+          case "Completed":
+            userStats.completedTasks += INCREMENT_VALUE;
+            break;
+          default:
+            // Tanımlanmamış statüler için sessizce devam et
+            break;
+        }
+      });
     });
 
     const workbook = new excelJS.Workbook();

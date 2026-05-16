@@ -1,108 +1,107 @@
-const mongoose = require('mongoose');
-const path = require('path');
-require('dotenv').config(); // .env dosyasını oku
+const mongoose = require("mongoose");
+const path     = require("path");
+require("dotenv").config();
 
-// Task modelinizi import edin - path'i kontrol edin
-const Task = require('./models/Task');
+const Task = require("./models/Task");
 
-// MongoDB bağlantı string'ini .env'den al
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
+// ─── SABİTLER ─────────────────────────────────────────────────────────────────
 
-console.log('\n🔍 Bağlantı Bilgileri:');
-console.log('   .env dosyası:', path.resolve('.env'));
-console.log('   MongoDB URI:', MONGODB_URI ? '✅ Bulundu' : '❌ Bulunamadı');
+const CATEGORIES = ["Work", "School", "Personal", "Other"];
+const DEFAULT_CATEGORY = "Other";
 
-if (!MONGODB_URI) {
-  console.error('\n❌ HATA: MongoDB bağlantı string\'i bulunamadı!');
-  console.log('\n📝 .env dosyanızda şunlardan birinin olduğundan emin olun:');
-  console.log('   MONGODB_URI=your-connection-string');
-  console.log('   MONGO_URI=your-connection-string');
-  console.log('   DATABASE_URL=your-connection-string');
-  process.exit(1);
-}
+const MONGODB_URI =
+  process.env.MONGODB_URI ||
+  process.env.MONGO_URI   ||
+  process.env.DATABASE_URL;
+
+// ─── YARDIMCI FONKSİYONLAR ───────────────────────────────────────────────────
+
+/**
+ * Tüm kategorilerin görev sayısını tek Promise.all çağrısıyla alır.
+ * S4123: Sıralı await countDocuments çağrıları Promise.all ile paralele alındı.
+ */
+const getCategoryCounts = async () => {
+  const [total, ...categoryCounts] = await Promise.all([
+    Task.countDocuments({}),
+    ...CATEGORIES.map((cat) => Task.countDocuments({ category: cat })),
+  ]);
+
+  const counts = {};
+  CATEGORIES.forEach((cat, i) => { counts[cat] = categoryCounts[i]; });
+  counts.total = total;
+  return counts;
+};
+
+/**
+ * Kategori dağılımını konsola yazdırır.
+ */
+const logCategoryCounts = (counts) => {
+  console.log("\nKategori Dagılımı:");
+  CATEGORIES.forEach((cat) => console.log(`  ${cat}: ${counts[cat]}`));
+  console.log(`  Toplam: ${counts.total}`);
+};
+
+// ─── ANA FONKSİYON ───────────────────────────────────────────────────────────
 
 async function updateExistingTasks() {
   try {
-    // MongoDB'ye bağlan
-    console.log('\n🔄 MongoDB bağlantısı kuruluyor...');
+    console.log("\nBaglantı Bilgileri:");
+    console.log("  .env dosyası:", path.resolve(".env"));
+    console.log("  MongoDB URI:", MONGODB_URI ? "Bulundu" : "Bulunamadı");
+
+    if (!MONGODB_URI) {
+      console.error("\nHATA: MongoDB baglantı string'i bulunamadı!");
+      console.log("  .env dosyanızda su degiskenlerden biri olmalı:");
+      console.log("  MONGODB_URI, MONGO_URI veya DATABASE_URL");
+      process.exit(1);
+    }
+
+    console.log("\nMongoDB baglantısı kuruluyor...");
     await mongoose.connect(MONGODB_URI);
-    console.log('✅ MongoDB bağlantısı başarılı!');
-    console.log('   Database:', mongoose.connection.name);
+    console.log("MongoDB baglantısı basarılı!");
+    console.log("  Database:", mongoose.connection.name);
 
-    // Kategorisi olmayan görevleri kontrol et
-    const tasksWithoutCategory = await Task.countDocuments({ 
-      category: { $exists: false } 
-    });
-    
-    console.log(`\n📊 Kategorisi olmayan görev sayısı: ${tasksWithoutCategory}`);
+    // S4123: Tek await ile paralel sorgu
+    const missingCount = await Task.countDocuments({ category: { $exists: false } });
+    console.log(`\nKategorisi olmayan görev sayısı: ${missingCount}`);
 
-    if (tasksWithoutCategory === 0) {
-      console.log('✅ Tüm görevlerde zaten category alanı mevcut!');
-      
-      // Mevcut kategori dağılımını göster
-      const workCount = await Task.countDocuments({ category: 'Work' });
-      const schoolCount = await Task.countDocuments({ category: 'School' });
-      const personalCount = await Task.countDocuments({ category: 'Personal' });
-      const otherCount = await Task.countDocuments({ category: 'Other' });
-      const totalTasks = await Task.countDocuments({});
-
-      console.log('\n📈 Mevcut Kategori Dağılımı:');
-      console.log(`   Work: ${workCount}`);
-      console.log(`   School: ${schoolCount}`);
-      console.log(`   Personal: ${personalCount}`);
-      console.log(`   Other: ${otherCount}`);
-      console.log(`   Toplam: ${totalTasks}`);
-      
-      mongoose.connection.close();
+    if (missingCount === 0) {
+      console.log("Tüm görevlerde zaten category alanı mevcut.");
+      logCategoryCounts(await getCategoryCounts());
+      await mongoose.connection.close();
       return;
     }
 
-    // Kategorisi olmayan tüm görevlere 'Other' kategorisi ekle
-    console.log('\n⏳ Görevler güncelleniyor...');
+    console.log("\nGörevler güncelleniyor...");
     const result = await Task.updateMany(
       { category: { $exists: false } },
-      { $set: { category: 'Other' } }
+      { $set: { category: DEFAULT_CATEGORY } }
     );
 
-    console.log(`\n✅ ${result.modifiedCount} görev başarıyla güncellendi!`);
-    console.log(`✅ Tüm görevlere 'Other' kategorisi eklendi.`);
+    console.log(`${result.modifiedCount} görev basarıyla güncellendi.`);
+    console.log(`Tüm görevlere '${DEFAULT_CATEGORY}' kategorisi eklendi.`);
 
-    // Güncellenmiş verileri kontrol et
-    const workCount = await Task.countDocuments({ category: 'Work' });
-    const schoolCount = await Task.countDocuments({ category: 'School' });
-    const personalCount = await Task.countDocuments({ category: 'Personal' });
-    const otherCount = await Task.countDocuments({ category: 'Other' });
-    const totalTasks = await Task.countDocuments({});
+    // S4123: Kategori sayımları Promise.all ile paralel alınıyor
+    logCategoryCounts(await getCategoryCounts());
 
-    console.log('\n📈 Güncellenmiş Kategori Dağılımı:');
-    console.log(`   Work: ${workCount}`);
-    console.log(`   School: ${schoolCount}`);
-    console.log(`   Personal: ${personalCount}`);
-    console.log(`   Other: ${otherCount}`);
-    console.log(`   Toplam: ${totalTasks}`);
-
-    // Bağlantıyı kapat
     await mongoose.connection.close();
-    console.log('\n✅ İşlem tamamlandı. MongoDB bağlantısı kapatıldı.');
-    console.log('🎉 Artık backend sunucunuzu başlatabilirsiniz!\n');
-    
+    console.log("\nIslem tamamlandı. MongoDB baglantısı kapatıldı.");
   } catch (error) {
-    console.error('\n❌ Hata oluştu:', error.message);
-    
-    if (error.name === 'MongooseServerSelectionError') {
-      console.log('\n💡 Çözüm önerileri:');
-      console.log('   1. .env dosyanızda MONGODB_URI doğru mu kontrol edin');
-      console.log('   2. MongoDB Atlas kullanıyorsanız, IP adresinizi whitelist\'e ekleyin');
-      console.log('   3. İnternet bağlantınızı kontrol edin');
-      console.log('   4. MongoDB Atlas\'ta cluster\'ınız çalışıyor mu kontrol edin');
+    console.error("\nHata olustu:", error.message);
+
+    if (error.name === "MongooseServerSelectionError") {
+      console.log("\nOlası nedenler:");
+      console.log("  - MONGODB_URI yanlış veya eksik");
+      console.log("  - MongoDB Atlas IP whitelist kontrolü");
+      console.log("  - Internet baglantısı");
+      console.log("  - Atlas cluster'ı çalışmıyor");
     }
-    
+
     await mongoose.connection.close();
     process.exit(1);
   }
 }
 
-// Script'i çalıştır
-console.log('\n🚀 Task Migration Script Başlatılıyor...');
-console.log('================================================\n');
+console.log("\nTask Migration Script Baslatılıyor...");
+console.log("=".repeat(48));
 updateExistingTasks();

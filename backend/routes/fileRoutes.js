@@ -1,6 +1,5 @@
 const express = require("express");
 const multer = require("multer");
-const path = require("path");
 const { protect } = require("../middlewares/authMiddleware");
 
 const router = express.Router();
@@ -8,7 +7,7 @@ const router = express.Router();
 //  Dosya storage ayarı
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/files/'); // ✅ uploads/files/ klasörüne kaydet
+    cb(null, 'uploads/files/'); //  uploads/files/ klasörüne kaydet
   },
   filename: (req, file, cb) => {
     const uniqueName = `${Date.now()}-${file.originalname}`;

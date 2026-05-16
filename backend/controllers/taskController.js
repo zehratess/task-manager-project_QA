@@ -1,126 +1,161 @@
+const fs   = require("fs");
+const path = require("path");
 const Task = require("../models/Task");
 
-//@desc get all tasks (admin: all, user: assigned)
+// ─── SABİTLER ─────────────────────────────────────────────────────────────────
+
+const TASK_STATUS = {
+  PENDING:     "Pending",
+  IN_PROGRESS: "In Progress",
+  COMPLETED:   "Completed",
+  UPCOMING:    "Upcoming",
+  OVERDUE:     "Overdue",
+};
+
+const CATEGORIES       = ["Work", "School", "Personal", "Other"];
+const PRIORITIES       = ["Low", "Medium", "High"];
+const TASK_STATUSES    = ["Pending", "In Progress", "Completed"];
+const UPCOMING_DAYS    = 3;
+const RECENT_TASKS_LIMIT = 10;
+
+// ─── YARDIMCI FONKSİYONLAR ───────────────────────────────────────────────────
+
+const getUpcomingDateRange = () => {
+  const start = new Date();
+  const end   = new Date();
+  end.setDate(end.getDate() + UPCOMING_DAYS);
+  return { $gte: start, $lte: end };
+};
+
+const buildUserFilter = (userId) => ({
+  $or: [{ createdBy: userId }, { assignedTo: userId }],
+});
+
+const formatAttachment = (file, userId) => {
+  if (typeof file === "string") {
+    return { fileName: "External Link", storagePath: file, fileSize: 0, uploader: userId };
+  }
+  return {
+    fileName:    file.fileName    || "File",
+    storagePath: file.storagePath,
+    fileSize:    file.fileSize    || 0,
+    uploader:    file.uploader    || userId,
+  };
+};
+
+const attachCompletedTodoCount = (task) => ({
+  ...task._doc,
+  completedTodoCount: (task.todoChecklist || []).filter((i) => i.completed).length,
+});
+
+// Promise.all ile paralel countDocuments — S4123 (gereksiz await) bulgusunu çözer
+const countTasks = async (baseFilter, countDefs) => {
+  const results = await Promise.all(
+    countDefs.map(({ extraFilter = {} }) =>
+      Task.countDocuments({ ...baseFilter, ...extraFilter })
+    )
+  );
+  return countDefs.reduce((acc, { key }, i) => {
+    acc[key] = results[i];
+    return acc;
+  }, {});
+};
+
+// Tekrarlı aggregate + reduce örüntüsü — S3776 (cognitive complexity) bulgusunu çözer
+const aggregateDistribution = (filter, field) =>
+  Task.aggregate([
+    { $match: filter },
+    { $group: { _id: `$${field}`, count: { $sum: 1 } } },
+  ]);
+
+const buildCountMap = (keys, raw, keyTransform = (k) => k) =>
+  keys.reduce((acc, key) => {
+    acc[keyTransform(key)] = raw.find((item) => item._id === key)?.count || 0;
+    return acc;
+  }, {});
+
+// getDashboardData ve getUserDashboardData ortak payload — DRY + S3776
+const buildDashboardPayload = async (userFilter) => {
+  const [counts, statusRaw, priorityRaw, categoryRaw, recentTasks] =
+    await Promise.all([
+      countTasks(userFilter, [
+        { key: "totalTasks" },
+        { key: "pendingTasks",   extraFilter: { status: TASK_STATUS.PENDING } },
+        { key: "completedTasks", extraFilter: { status: TASK_STATUS.COMPLETED } },
+        { key: "overdueTasks",   extraFilter: { status: { $ne: TASK_STATUS.COMPLETED }, dueDate: { $lt: new Date() } } },
+        { key: "upcomingTasks",  extraFilter: { status: { $ne: TASK_STATUS.COMPLETED }, dueDate: getUpcomingDateRange() } },
+      ]),
+      aggregateDistribution(userFilter, "status"),
+      aggregateDistribution(userFilter, "priority"),
+      aggregateDistribution(userFilter, "category"),
+      Task.find(userFilter)
+        .sort({ createdAt: -1 })
+        .limit(RECENT_TASKS_LIMIT)
+        .select("title status priority category dueDate createdAt"),
+    ]);
+
+  const taskDistribution = buildCountMap(
+    TASK_STATUSES, statusRaw, (s) => s.replace(/\s+/g, "")
+  );
+  taskDistribution["All"] = counts.totalTasks;
+
+  return {
+    statistics: counts,
+    charts: {
+      taskDistribution,
+      taskPriorityLevels:  buildCountMap(PRIORITIES, priorityRaw),
+      taskCategoryLevels:  buildCountMap(CATEGORIES, categoryRaw),
+    },
+    recentTasks,
+  };
+};
+
+// ─── CONTROLLER FONKSİYONLARI ────────────────────────────────────────────────
+
+//@desc get all tasks
 //@route GET /api/tasks
 //@access private
 const getTasks = async (req, res) => {
   try {
     const { status, category } = req.query;
+    const userFilter = buildUserFilter(req.user._id);
+    const filter     = { ...userFilter };
 
-    const filter = {
-      $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
-    };
+    if (category && category !== "All") filter.category = category;
 
-    // ✅ Category filter
-    if (category && category !== "All") {
-      filter.category = category;
-    }
-
-    // ✅ Status filter
-    if (status && status !== "Upcoming") {
-      filter.status = status;
-    }
-
-    // ✅ Upcoming filter - 3 gün içinde
-    if (status === "Upcoming") {
-      const threeDaysLater = new Date();
-      threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-      filter.status = { $ne: "Completed" };
-      filter.dueDate = {
-        $gte: new Date(),
-        $lte: threeDaysLater,
-      };
-    }
-
-    if (status === "Overdue") {
-      filter.dueDate = { $lt: new Date() }; // Bugünden küçük tarihler
-      filter.status = { $ne: "Completed" }; // Tamamlanmamış olanlar
+    switch (status) {
+      case TASK_STATUS.UPCOMING:
+        filter.status  = { $ne: TASK_STATUS.COMPLETED };
+        filter.dueDate = getUpcomingDateRange();
+        break;
+      case TASK_STATUS.OVERDUE:
+        filter.status  = { $ne: TASK_STATUS.COMPLETED };
+        filter.dueDate = { $lt: new Date() };
+        break;
+      default:
+        if (status && status !== "All") filter.status = status;
     }
 
     const tasksFromDb = await Task.find(filter).populate(
-      "assignedTo",
-      "name email profileImageUrl"
+      "assignedTo", "name email profileImageUrl"
+    );
+    const tasks = tasksFromDb.map(attachCompletedTodoCount);
+
+    // S4123: Sıralı await yerine Promise.all ile paralel sayım
+    const counts = await countTasks(userFilter, [
+      { key: "all" },
+      { key: "pendingTasks",    extraFilter: { status: TASK_STATUS.PENDING } },
+      { key: "inProgressTasks", extraFilter: { status: TASK_STATUS.IN_PROGRESS } },
+      { key: "completedTasks",  extraFilter: { status: TASK_STATUS.COMPLETED } },
+      { key: "upcomingTasks",   extraFilter: { status: { $ne: TASK_STATUS.COMPLETED }, dueDate: getUpcomingDateRange() } },
+      { key: "overdueTasks",    extraFilter: { status: { $ne: TASK_STATUS.COMPLETED }, dueDate: { $lt: new Date() } } },
+    ]);
+
+    const categoryCounts = await countTasks(userFilter,
+      CATEGORIES.map((cat) => ({ key: cat.toLowerCase(), extraFilter: { category: cat } }))
     );
 
-    const tasks = tasksFromDb.map((task) => {
-      const completedCount = (task.todoChecklist || []).filter(
-        (item) => item.completed
-      ).length;
-      return { ...task._doc, completedTodoCount: completedCount };
-    });
-
-    const userFilter = {
-      $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
-    };
-
-    const allTasks = await Task.countDocuments(userFilter);
-    const pendingTasks = await Task.countDocuments({
-      ...userFilter,
-      status: "Pending",
-    });
-    const inProgressTasks = await Task.countDocuments({
-      ...userFilter,
-      status: "In Progress",
-    });
-    const completedTasks = await Task.countDocuments({
-      ...userFilter,
-      status: "Completed",
-    });
-
-    // ✅ Upcoming count
-    const threeDaysLater = new Date();
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-    const upcomingTasks = await Task.countDocuments({
-      ...userFilter,
-      status: { $ne: "Completed" },
-      dueDate: {
-        $gte: new Date(),
-        $lte: threeDaysLater,
-      },
-    });
-    
-    const overdueTasks = await Task.countDocuments({
-      ...userFilter,
-      status: { $ne: "Completed" },
-      dueDate: { $lt: new Date() },
-    });
-
-    // ✅ Category counts
-    const workTasks = await Task.countDocuments({
-      ...userFilter,
-      category: "Work",
-    });
-    const schoolTasks = await Task.countDocuments({
-      ...userFilter,
-      category: "School",
-    });
-    const personalTasks = await Task.countDocuments({
-      ...userFilter,
-      category: "Personal",
-    });
-    const otherTasks = await Task.countDocuments({
-      ...userFilter,
-      category: "Other",
-    });
-
-    res.json({
-      tasks,
-      statusSummary: {
-        all: allTasks,
-        pendingTasks,
-        inProgressTasks,
-        completedTasks,
-        upcomingTasks,
-        overdueTasks,
-      },
-      categorySummary: {
-        work: workTasks,
-        school: schoolTasks,
-        personal: personalTasks,
-        other: otherTasks,
-      },
-    });
+    res.json({ tasks, statusSummary: counts, categorySummary: categoryCounts });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -132,22 +167,18 @@ const getTasks = async (req, res) => {
 const getTaskById = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id).populate(
-      "assignedTo",
-      "name email profileImageUrl"
+      "assignedTo", "name email profileImageUrl"
     );
 
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // ✅ Creator VEYA assigned görebilir
-    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isCreator  = task.createdBy.toString() === req.user._id.toString();
     const isAssigned = task.assignedTo.some(
-      (userId) => userId._id.toString() === req.user._id.toString()
+      (u) => u._id.toString() === req.user._id.toString()
     );
 
     if (!isCreator && !isAssigned) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to view this task" });
+      return res.status(403).json({ message: "Not authorized to view this task" });
     }
 
     res.json(task);
@@ -161,22 +192,11 @@ const getTaskById = async (req, res) => {
 //@access private
 const createTask = async (req, res) => {
   try {
-    const {
-      title,
-      description,
-      priority,
-      category,
-      dueDate,
-      assignedTo,
-      attachments,
-      todoChecklist,
-    } = req.body;
+    const { title, description, priority, category, dueDate, assignedTo, attachments, todoChecklist } = req.body;
 
-        // validation test case de fail yemeyelim diye 
     if (!title || !title.trim()) {
       return res.status(400).json({ message: "Title is required" });
     }
-
     if (!dueDate) {
       return res.status(400).json({ message: "Due date is required" });
     }
@@ -185,48 +205,25 @@ const createTask = async (req, res) => {
     if (Number.isNaN(parsedDueDate.getTime())) {
       return res.status(400).json({ message: "Due date is invalid" });
     }
-
-    const now = new Date();
-    if (parsedDueDate < now) {
+    if (parsedDueDate < new Date()) {
       return res.status(400).json({ message: "Due date cannot be in the past" });
     }
-
-    const allowedPriorities = ["Low", "Medium", "High"];
-    if (priority && !allowedPriorities.includes(priority)) {
-      return res.status(400).json({
-        message: "Priority must be one of: Low, Medium, High",
-      });
+    if (priority && !PRIORITIES.includes(priority)) {
+      return res.status(400).json({ message: `Priority must be one of: ${PRIORITIES.join(", ")}` });
     }
 
-    // ✅ Attachments'ı düzgün formatlayalım
-    const formattedAttachments = (attachments || []).map((file) => {
-      // Eğer string geldiyse (sadece URL), objeye çevir
-      if (typeof file === "string") {
-        return {
-          fileName: "External Link",
-          storagePath: file,
-          fileSize: 0,
-          uploader: req.user._id,
-        };
-      }
-      // Eğer obje geldiyse, uploader'ı ekle
-      return {
-        fileName: file.fileName || "File",
-        storagePath: file.storagePath,
-        fileSize: file.fileSize || 0,
-        uploader: req.user._id,
-      };
-    });
+    const formattedAttachments = (attachments || []).map((file) =>
+      formatAttachment(file, req.user._id)
+    );
 
-    const assignedToFinal =
-      req.user.role !== "admin" ? [req.user._id] : assignedTo;
+    const assignedToFinal = req.user.role !== "admin" ? [req.user._id] : assignedTo;
 
     const task = await Task.create({
-      title : title.trim(),
+      title: title.trim(),
       description,
       priority,
-      category: category || "Other", 
-      dueDate : parsedDueDate,
+      category: category || "Other",
+      dueDate: parsedDueDate,
       assignedTo: assignedToFinal,
       createdBy: req.user._id,
       attachments: formattedAttachments,
@@ -246,61 +243,34 @@ const createTask = async (req, res) => {
 const updateTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
-
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // ✅ Task'ı oluşturan veya assigned olan güncelleyebilir
-    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isCreator  = task.createdBy.toString() === req.user._id.toString();
     const isAssigned = task.assignedTo.some(
-      (userId) => userId.toString() === req.user._id.toString()
+      (id) => id.toString() === req.user._id.toString()
     );
 
     if (!isCreator && !isAssigned) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to update this task" });
+      return res.status(403).json({ message: "Not authorized to update this task" });
     }
 
-    // ✅ Update işlemleri
-    task.title = req.body.title || task.title;
-    task.description = req.body.description || task.description;
-    task.priority = req.body.priority || task.priority;
-    task.category = req.body.category || task.category; // ✅ Category update
-    task.dueDate = req.body.dueDate || task.dueDate;
-    task.todoChecklist = req.body.todoChecklist || task.todoChecklist;
+    const updatableFields = ["title", "description", "priority", "category", "dueDate", "todoChecklist"];
+    updatableFields.forEach((field) => {
+      if (req.body[field] !== undefined) task[field] = req.body[field];
+    });
 
-    // ✅ Attachments'ı düzgün formatlayalım
     if (req.body.attachments) {
-      task.attachments = (req.body.attachments || []).map((file) => {
-        if (typeof file === "string") {
-          return {
-            fileName: "External Link",
-            storagePath: file,
-            fileSize: 0,
-            uploader: req.user._id,
-          };
-        }
-        return {
-          fileName: file.fileName || "File",
-          storagePath: file.storagePath,
-          fileSize: file.fileSize || 0,
-          uploader: file.uploader || req.user._id,
-        };
-      });
+      task.attachments = req.body.attachments.map((file) =>
+        formatAttachment(file, req.user._id)
+      );
     }
 
-    // ✅ SADECE ADMIN assignedTo değiştirebilir
-    if (req.body.assignedTo) {
+    if (req.body.assignedTo !== undefined) {
       if (req.user.role !== "admin") {
-        return res
-          .status(403)
-          .json({ message: "Only admins can change task assignment" });
+        return res.status(403).json({ message: "Only admins can change task assignment" });
       }
-
       if (!Array.isArray(req.body.assignedTo)) {
-        return res
-          .status(400)
-          .json({ message: "assignedTo must be an array of user IDs" });
+        return res.status(400).json({ message: "assignedTo must be an array of user IDs" });
       }
       task.assignedTo = req.body.assignedTo;
     }
@@ -316,39 +286,25 @@ const updateTask = async (req, res) => {
 //@desc delete a task
 //@route DELETE /api/tasks/:id
 //@access private
-const fs = require("fs"); // Dosya sistemine erişmek için
-const path = require("path");
-
 const deleteTask = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
-
     if (!task) return res.status(404).json({ message: "Task not found" });
 
     if (task.createdBy.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to delete this task" });
+      return res.status(403).json({ message: "Not authorized to delete this task" });
     }
 
-    // ✅ Fiziksel dosyaları sil
-    if (task.attachments && task.attachments.length > 0) {
-      task.attachments.forEach((attachment) => {
-        // Sadece upload edilmiş dosyaları sil (external link'leri değil)
-        if (
-          attachment.storagePath &&
-          attachment.storagePath.includes("/uploads/")
-        ) {
-          const fileName = attachment.storagePath.split("/").pop();
-          const filePath = path.join(__dirname, "../uploads/files/", fileName);
-
-          if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            console.log(`${fileName} başarıyla silindi.`);
-          }
-        }
-      });
-    }
+    (task.attachments || []).forEach((attachment) => {
+      const isUploadedFile = attachment.storagePath?.includes("/uploads/");
+      if (!isUploadedFile) return;
+      const fileName = attachment.storagePath.split("/").pop();
+      const filePath = path.join(__dirname, "../uploads/files/", fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`${fileName} başarıyla silindi.`);
+      }
+    });
 
     await task.deleteOne();
     res.json({ message: "Task and its attachments deleted successfully" });
@@ -364,25 +320,21 @@ const deleteTask = async (req, res) => {
 const updateTaskStatus = async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
-
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // ✅ Creator VEYA assigned status değiştirebilir
-    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isCreator  = task.createdBy.toString() === req.user._id.toString();
     const isAssigned = task.assignedTo.some(
-      (userId) => userId.toString() === req.user._id.toString()
+      (id) => id.toString() === req.user._id.toString()
     );
 
     if (!isCreator && !isAssigned) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to update task status" });
+      return res.status(403).json({ message: "Not authorized to update task status" });
     }
 
-    task.status = req.body.status || task.status;
+    if (req.body.status) task.status = req.body.status;
 
-    if (task.status === "Completed") {
-      task.todoChecklist.forEach((item) => (item.completed = true));
+    if (task.status === TASK_STATUS.COMPLETED) {
+      task.todoChecklist.forEach((item) => { item.completed = true; });
       task.progress = 100;
     }
 
@@ -400,42 +352,31 @@ const updateTaskChecklist = async (req, res) => {
   try {
     const { todoChecklist } = req.body;
     const task = await Task.findById(req.params.id);
-
     if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // ✅ Creator VEYA assigned checklist güncelleyebilir
-    const isCreator = task.createdBy.toString() === req.user._id.toString();
+    const isCreator  = task.createdBy.toString() === req.user._id.toString();
     const isAssigned = task.assignedTo.some(
-      (userId) => userId.toString() === req.user._id.toString()
+      (id) => id.toString() === req.user._id.toString()
     );
 
     if (!isCreator && !isAssigned) {
-      return res
-        .status(403)
-        .json({ message: "Not authorized to update checklist" });
+      return res.status(403).json({ message: "Not authorized to update checklist" });
     }
 
     task.todoChecklist = todoChecklist;
 
-    const completedCount = task.todoChecklist.filter(
-      (item) => item.completed
-    ).length;
-    const totalItems = task.todoChecklist.length;
-    task.progress =
-      totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
+    const completedCount = task.todoChecklist.filter((item) => item.completed).length;
+    const totalItems     = task.todoChecklist.length;
+    task.progress = totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
 
-    if (task.progress === 100) {
-      task.status = "Completed";
-    } else if (task.progress > 0) {
-      task.status = "In Progress";
-    } else {
-      task.status = "Pending";
-    }
+    if (task.progress === 100)      task.status = TASK_STATUS.COMPLETED;
+    else if (task.progress > 0)     task.status = TASK_STATUS.IN_PROGRESS;
+    else                            task.status = TASK_STATUS.PENDING;
 
     await task.save();
+
     const updatedTask = await Task.findById(req.params.id).populate(
-      "assignedTo",
-      "name email profileImageUrl"
+      "assignedTo", "name email profileImageUrl"
     );
 
     res.json({ message: "Task checklist updated", task: updatedTask });
@@ -449,98 +390,8 @@ const updateTaskChecklist = async (req, res) => {
 //@access private
 const getDashboardData = async (req, res) => {
   try {
-    // ✅ Admin için de hem created hem assigned
-    const userFilter = {
-      $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
-    };
-
-    const totalTasks = await Task.countDocuments(userFilter);
-    const pendingTasks = await Task.countDocuments({
-      ...userFilter,
-      status: "Pending",
-    });
-    const completedTasks = await Task.countDocuments({
-      ...userFilter,
-      status: "Completed",
-    });
-    const overdueTasks = await Task.countDocuments({
-      ...userFilter,
-      status: { $ne: "Completed" },
-      dueDate: { $lt: new Date() },
-    });
-
-    const taskStatuses = ["Pending", "In Progress", "Completed"];
-    const taskDistributionRaw = await Task.aggregate([
-      { $match: userFilter },
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-    ]);
-
-    const taskDistribution = taskStatuses.reduce((acc, status) => {
-      const formattedKey = status.replace(/\s+/g, "");
-      acc[formattedKey] =
-        taskDistributionRaw.find((item) => item._id === status)?.count || 0;
-      return acc;
-    }, {});
-    taskDistribution["All"] = totalTasks;
-
-    const taskPriorities = ["Low", "Medium", "High"];
-    const taskPriorityLevelsRaw = await Task.aggregate([
-      { $match: userFilter },
-      { $group: { _id: "$priority", count: { $sum: 1 } } },
-    ]);
-
-    // Yaklaşan görevler (3 gün içinde)
-    const threeDaysLater = new Date();
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    const upcomingTasks = await Task.countDocuments({
-      ...userFilter,
-      status: { $ne: "Completed" },
-      dueDate: {
-        $gte: new Date(),
-        $lte: threeDaysLater,
-      },
-    });
-
-    const taskPriorityLevels = taskPriorities.reduce((acc, priority) => {
-      acc[priority] =
-        taskPriorityLevelsRaw.find((item) => item._id === priority)?.count || 0;
-      return acc;
-    }, {});
-
-    // ✅ Category distribution
-    const taskCategories = ["Work", "School", "Personal", "Other"];
-    const taskCategoryLevelsRaw = await Task.aggregate([
-      { $match: userFilter },
-      { $group: { _id: "$category", count: { $sum: 1 } } },
-    ]);
-
-    const taskCategoryLevels = taskCategories.reduce((acc, category) => {
-      acc[category] =
-        taskCategoryLevelsRaw.find((item) => item._id === category)?.count || 0;
-      return acc;
-    }, {});
-
-    const recentTasks = await Task.find(userFilter)
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .select("title status priority category dueDate createdAt");
-
-    res.status(200).json({
-      statistics: {
-        totalTasks,
-        pendingTasks,
-        completedTasks,
-        overdueTasks,
-        upcomingTasks,
-      },
-      charts: { 
-        taskDistribution, 
-        taskPriorityLevels,
-        taskCategoryLevels, // ✅ Yeni
-      },
-      recentTasks,
-    });
+    const payload = await buildDashboardPayload(buildUserFilter(req.user._id));
+    res.status(200).json(payload);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -551,119 +402,8 @@ const getDashboardData = async (req, res) => {
 //@access private
 const getUserDashboardData = async (req, res) => {
   try {
-    const userId = req.user._id;
-
-    // ✅ Hem created hem assigned
-    const userFilter = {
-      $or: [{ createdBy: userId }, { assignedTo: userId }],
-    };
-
-    // Fetch statistics
-    const totalTasks = await Task.countDocuments(userFilter);
-    const pendingTasks = await Task.countDocuments({
-      ...userFilter,
-      status: "Pending",
-    });
-    const completedTasks = await Task.countDocuments({
-      ...userFilter,
-      status: "Completed",
-    });
-    const overdueTasks = await Task.countDocuments({
-      ...userFilter,
-      status: { $ne: "Completed" },
-      dueDate: { $lt: new Date() },
-    });
-
-    // Task distribution by status
-    const taskStatuses = ["Pending", "In Progress", "Completed"];
-    const taskDistributionRaw = await Task.aggregate([
-      { $match: userFilter },
-      {
-        $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    // Yaklaşan görevler (3 gün içinde)
-    const threeDaysLater = new Date();
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    const upcomingTasks = await Task.countDocuments({
-      ...userFilter,
-      status: { $ne: "Completed" },
-      dueDate: {
-        $gte: new Date(),
-        $lte: threeDaysLater,
-      },
-    });
-
-    const taskDistribution = taskStatuses.reduce((acc, status) => {
-      const formattedKey = status.replace(/\s+/g, "");
-      acc[formattedKey] =
-        taskDistributionRaw.find((item) => item._id === status)?.count || 0;
-      return acc;
-    }, {});
-    taskDistribution["All"] = totalTasks;
-
-    // Task distribution by priority
-    const taskPriorities = ["Low", "Medium", "High"];
-    const taskPriorityLevelsRaw = await Task.aggregate([
-      { $match: userFilter },
-      {
-        $group: {
-          _id: "$priority",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const taskPriorityLevels = taskPriorities.reduce((acc, priority) => {
-      acc[priority] =
-        taskPriorityLevelsRaw.find((item) => item._id === priority)?.count || 0;
-      return acc;
-    }, {});
-
-    // ✅ Task distribution by category
-    const taskCategories = ["Work", "School", "Personal", "Other"];
-    const taskCategoryLevelsRaw = await Task.aggregate([
-      { $match: userFilter },
-      {
-        $group: {
-          _id: "$category",
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    const taskCategoryLevels = taskCategories.reduce((acc, category) => {
-      acc[category] =
-        taskCategoryLevelsRaw.find((item) => item._id === category)?.count || 0;
-      return acc;
-    }, {});
-
-    // Fetch recent 10 tasks
-    const recentTasks = await Task.find(userFilter)
-      .sort({ createdAt: -1 })
-      .limit(10)
-      .select("title status priority category dueDate createdAt");
-
-    res.status(200).json({
-      statistics: {
-        totalTasks,
-        pendingTasks,
-        completedTasks,
-        overdueTasks,
-        upcomingTasks,
-      },
-      charts: {
-        taskDistribution,
-        taskPriorityLevels,
-        taskCategoryLevels, // ✅ Yeni
-      },
-      recentTasks,
-    });
+    const payload = await buildDashboardPayload(buildUserFilter(req.user._id));
+    res.status(200).json(payload);
   } catch (error) {
     console.error("getUserDashboardData error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
@@ -681,607 +421,3 @@ module.exports = {
   getDashboardData,
   getUserDashboardData,
 };
-
-
-
-
-
-
-// const Task = require("../models/Task");
-
-
-
-// //@desc get all tasks (admin: all, user: assigned)
-// //@route GET /api/tasks
-// //@access private
-// const getTasks = async (req, res) => {
-//   try {
-//     const { status } = req.query;
-
-//     const filter = {
-//       $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
-//     };
-
-//     // ✅ Status filter
-//     if (status && status !== "Upcoming") {
-//       filter.status = status;
-//     }
-
-//     // ✅ Upcoming filter - 3 gün içinde
-//     if (status === "Upcoming") {
-//       const threeDaysLater = new Date();
-//       threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-//       filter.status = { $ne: "Completed" };
-//       filter.dueDate = {
-//         $gte: new Date(),
-//         $lte: threeDaysLater,
-//       };
-//     }
-
-//     if (status === "Overdue") {
-//       filter.dueDate = { $lt: new Date() }; // Bugünden küçük tarihler
-//       filter.status = { $ne: "Completed" }; // Tamamlanmamış olanlar
-//     }
-
-//     const tasksFromDb = await Task.find(filter).populate(
-//       "assignedTo",
-//       "name email profileImageUrl"
-//     );
-
-//     const tasks = tasksFromDb.map((task) => {
-//       const completedCount = (task.todoChecklist || []).filter(
-//         (item) => item.completed
-//       ).length;
-//       return { ...task._doc, completedTodoCount: completedCount };
-//     });
-
-//     const userFilter = {
-//       $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
-//     };
-
-//     const allTasks = await Task.countDocuments(userFilter);
-//     const pendingTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: "Pending",
-//     });
-//     const inProgressTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: "In Progress",
-//     });
-//     const completedTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: "Completed",
-//     });
-
-//     // ✅ Upcoming count
-//     const threeDaysLater = new Date();
-//     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-//     const upcomingTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: { $ne: "Completed" },
-//       dueDate: {
-//         $gte: new Date(),
-//         $lte: threeDaysLater,
-//       },
-//     });
-    
-//     const overdueTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: { $ne: "Completed" },
-//       dueDate: { $lt: new Date() },
-//     });
-
-//     res.json({
-//       tasks,
-//       statusSummary: {
-//         all: allTasks,
-//         pendingTasks,
-//         inProgressTasks,
-//         completedTasks,
-//         upcomingTasks, // ✅ Yeni
-//         overdueTasks,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// //@desc get task by id
-// //@route GET /api/tasks/:id
-// //@access private
-// const getTaskById = async (req, res) => {
-//   try {
-//     const task = await Task.findById(req.params.id).populate(
-//       "assignedTo",
-//       "name email profileImageUrl"
-//     );
-
-//     if (!task) return res.status(404).json({ message: "Task not found" });
-
-//     // ✅ Creator VEYA assigned görebilir
-//     const isCreator = task.createdBy.toString() === req.user._id.toString();
-//     const isAssigned = task.assignedTo.some(
-//       (userId) => userId._id.toString() === req.user._id.toString()
-//     );
-
-//     if (!isCreator && !isAssigned) {
-//       return res
-//         .status(403)
-//         .json({ message: "Not authorized to view this task" });
-//     }
-
-//     res.json(task);
-//   } catch (error) {
-//     res.status(500).json({ message: "Server Error", error: error.message });
-//   }
-// };
-
-// //@desc create a new task
-// //@route POST /api/tasks
-// //@access private
-// // taskController.js -> createTask fonksiyonu içi
-// const createTask = async (req, res) => {
-//   try {
-//     const {
-//       title,
-//       description,
-//       priority,
-//       dueDate,
-//       assignedTo,
-//       attachments,
-//       todoChecklist,
-//     } = req.body;
-
-//     // ✅ Attachments'ı düzgün formatlayalım
-//     const formattedAttachments = (attachments || []).map((file) => {
-//       // Eğer string geldiyse (sadece URL), objeye çevir
-//       if (typeof file === "string") {
-//         return {
-//           fileName: "External Link",
-//           storagePath: file,
-//           fileSize: 0,
-//           uploader: req.user._id,
-//         };
-//       }
-//       // Eğer obje geldiyse, uploader'ı ekle
-//       return {
-//         fileName: file.fileName || "File",
-//         storagePath: file.storagePath,
-//         fileSize: file.fileSize || 0,
-//         uploader: req.user._id,
-//       };
-//     });
-
-//     const assignedToFinal =
-//       req.user.role !== "admin" ? [req.user._id] : assignedTo;
-
-//     const task = await Task.create({
-//       title,
-//       description,
-//       priority,
-//       dueDate,
-//       assignedTo: assignedToFinal,
-//       createdBy: req.user._id,
-//       attachments: formattedAttachments,
-//       todoChecklist,
-//     });
-
-//     res.status(201).json({ message: "Task created successfully", task });
-//   } catch (error) {
-//     console.error("TASK CREATE ERROR:", error);
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// //@desc update task details
-// //@route PUT /api/tasks/:id
-// //@access private
-// const updateTask = async (req, res) => {
-//   try {
-//     const task = await Task.findById(req.params.id);
-
-//     if (!task) return res.status(404).json({ message: "Task not found" });
-
-//     // ✅ Task'ı oluşturan veya assigned olan güncelleyebilir
-//     const isCreator = task.createdBy.toString() === req.user._id.toString();
-//     const isAssigned = task.assignedTo.some(
-//       (userId) => userId.toString() === req.user._id.toString()
-//     );
-
-//     if (!isCreator && !isAssigned) {
-//       return res
-//         .status(403)
-//         .json({ message: "Not authorized to update this task" });
-//     }
-
-//     // ✅ Update işlemleri
-//     task.title = req.body.title || task.title;
-//     task.description = req.body.description || task.description;
-//     task.priority = req.body.priority || task.priority;
-//     task.dueDate = req.body.dueDate || task.dueDate;
-//     task.todoChecklist = req.body.todoChecklist || task.todoChecklist;
-
-//     // ✅ Attachments'ı düzgün formatlayalım
-//     if (req.body.attachments) {
-//       task.attachments = (req.body.attachments || []).map((file) => {
-//         if (typeof file === "string") {
-//           return {
-//             fileName: "External Link",
-//             storagePath: file,
-//             fileSize: 0,
-//             uploader: req.user._id,
-//           };
-//         }
-//         return {
-//           fileName: file.fileName || "File",
-//           storagePath: file.storagePath,
-//           fileSize: file.fileSize || 0,
-//           uploader: file.uploader || req.user._id,
-//         };
-//       });
-//     }
-
-//     // ✅ SADECE ADMIN assignedTo değiştirebilir
-//     if (req.body.assignedTo) {
-//       if (req.user.role !== "admin") {
-//         return res
-//           .status(403)
-//           .json({ message: "Only admins can change task assignment" });
-//       }
-
-//       if (!Array.isArray(req.body.assignedTo)) {
-//         return res
-//           .status(400)
-//           .json({ message: "assignedTo must be an array of user IDs" });
-//       }
-//       task.assignedTo = req.body.assignedTo;
-//     }
-
-//     const updatedTask = await task.save();
-//     res.json({ message: "Task updated successfully", updatedTask });
-//   } catch (error) {
-//     console.error("UPDATE TASK ERROR:", error);
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// //@desc delete a task
-// //@route DELETE /api/tasks/:id
-// //@access private
-// const fs = require("fs"); // Dosya sistemine erişmek için
-// const path = require("path");
-
-// const deleteTask = async (req, res) => {
-//   try {
-//     const task = await Task.findById(req.params.id);
-
-//     if (!task) return res.status(404).json({ message: "Task not found" });
-
-//     if (task.createdBy.toString() !== req.user._id.toString()) {
-//       return res
-//         .status(403)
-//         .json({ message: "Not authorized to delete this task" });
-//     }
-
-//     // ✅ Fiziksel dosyaları sil
-//     if (task.attachments && task.attachments.length > 0) {
-//       task.attachments.forEach((attachment) => {
-//         // Sadece upload edilmiş dosyaları sil (external link'leri değil)
-//         if (
-//           attachment.storagePath &&
-//           attachment.storagePath.includes("/uploads/")
-//         ) {
-//           const fileName = attachment.storagePath.split("/").pop();
-//           const filePath = path.join(__dirname, "../uploads/files/", fileName);
-
-//           if (fs.existsSync(filePath)) {
-//             fs.unlinkSync(filePath);
-//             console.log(`${fileName} başarıyla silindi.`);
-//           }
-//         }
-//       });
-//     }
-
-//     await task.deleteOne();
-//     res.json({ message: "Task and its attachments deleted successfully" });
-//   } catch (error) {
-//     console.error("DELETE TASK ERROR:", error);
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// //@desc update task status
-// //@route PUT /api/tasks/:id/status
-// //@access private
-// const updateTaskStatus = async (req, res) => {
-//   try {
-//     const task = await Task.findById(req.params.id);
-
-//     if (!task) return res.status(404).json({ message: "Task not found" });
-
-//     // ✅ Creator VEYA assigned status değiştirebilir
-//     const isCreator = task.createdBy.toString() === req.user._id.toString();
-//     const isAssigned = task.assignedTo.some(
-//       (userId) => userId.toString() === req.user._id.toString()
-//     );
-
-//     if (!isCreator && !isAssigned) {
-//       return res
-//         .status(403)
-//         .json({ message: "Not authorized to update task status" });
-//     }
-
-//     task.status = req.body.status || task.status;
-
-//     if (task.status === "Completed") {
-//       task.todoChecklist.forEach((item) => (item.completed = true));
-//       task.progress = 100;
-//     }
-
-//     await task.save();
-//     res.json({ message: "Task status updated", task });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// //@desc update task checklist
-// //@route PUT /api/tasks/:id/todo
-// //@access private
-// const updateTaskChecklist = async (req, res) => {
-//   try {
-//     const { todoChecklist } = req.body;
-//     const task = await Task.findById(req.params.id);
-
-//     if (!task) return res.status(404).json({ message: "Task not found" });
-
-//     // ✅ Creator VEYA assigned checklist güncelleyebilir
-//     const isCreator = task.createdBy.toString() === req.user._id.toString();
-//     const isAssigned = task.assignedTo.some(
-//       (userId) => userId.toString() === req.user._id.toString()
-//     );
-
-//     if (!isCreator && !isAssigned) {
-//       return res
-//         .status(403)
-//         .json({ message: "Not authorized to update checklist" });
-//     }
-
-//     task.todoChecklist = todoChecklist;
-
-//     const completedCount = task.todoChecklist.filter(
-//       (item) => item.completed
-//     ).length;
-//     const totalItems = task.todoChecklist.length;
-//     task.progress =
-//       totalItems > 0 ? Math.round((completedCount / totalItems) * 100) : 0;
-
-//     if (task.progress === 100) {
-//       task.status = "Completed";
-//     } else if (task.progress > 0) {
-//       task.status = "In Progress";
-//     } else {
-//       task.status = "Pending";
-//     }
-
-//     await task.save();
-//     const updatedTask = await Task.findById(req.params.id).populate(
-//       "assignedTo",
-//       "name email profileImageUrl"
-//     );
-
-//     res.json({ message: "Task checklist updated", task: updatedTask });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// //@desc get dashboard data (admin)
-// //@route GET /api/tasks/dashboard-data
-// //@access private
-// //@desc get dashboard data (admin)
-// //@route GET /api/tasks/dashboard-data
-// //@access private
-// const getDashboardData = async (req, res) => {
-//   try {
-//     // ✅ Admin için de hem created hem assigned
-//     const userFilter = {
-//       $or: [{ createdBy: req.user._id }, { assignedTo: req.user._id }],
-//     };
-
-//     const totalTasks = await Task.countDocuments(userFilter);
-//     const pendingTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: "Pending",
-//     });
-//     const completedTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: "Completed",
-//     });
-//     const overdueTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: { $ne: "Completed" },
-//       dueDate: { $lt: new Date() },
-//     });
-
-//     const taskStatuses = ["Pending", "In Progress", "Completed"];
-//     const taskDistributionRaw = await Task.aggregate([
-//       { $match: userFilter },
-//       { $group: { _id: "$status", count: { $sum: 1 } } },
-//     ]);
-
-//     const taskDistribution = taskStatuses.reduce((acc, status) => {
-//       const formattedKey = status.replace(/\s+/g, "");
-//       acc[formattedKey] =
-//         taskDistributionRaw.find((item) => item._id === status)?.count || 0;
-//       return acc;
-//     }, {});
-//     taskDistribution["All"] = totalTasks;
-
-//     const taskPriorities = ["Low", "Medium", "High"];
-//     const taskPriorityLevelsRaw = await Task.aggregate([
-//       { $match: userFilter },
-//       { $group: { _id: "$priority", count: { $sum: 1 } } },
-//     ]);
-
-//     // Yaklaşan görevler (3 gün içinde)
-//     const threeDaysLater = new Date();
-//     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-//     const upcomingTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: { $ne: "Completed" },
-//       dueDate: {
-//         $gte: new Date(), // Bugünden sonra
-//         $lte: threeDaysLater, // 3 gün içinde
-//       },
-//     });
-
-//     const taskPriorityLevels = taskPriorities.reduce((acc, priority) => {
-//       acc[priority] =
-//         taskPriorityLevelsRaw.find((item) => item._id === priority)?.count || 0;
-//       return acc;
-//     }, {});
-
-//     const recentTasks = await Task.find(userFilter)
-//       .sort({ createdAt: -1 })
-//       .limit(10)
-//       .select("title status priority dueDate createdAt");
-
-//     res.status(200).json({
-//       statistics: {
-//         totalTasks,
-//         pendingTasks,
-//         completedTasks,
-//         overdueTasks,
-//         upcomingTasks,
-//       },
-//       charts: { taskDistribution, taskPriorityLevels },
-//       recentTasks,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// //@desc get user dashboard data
-// //@route GET /api/tasks/user-dashboard-data
-// //@access private
-// //@desc get user dashboard data
-// //@route GET /api/tasks/user-dashboard-data
-// //@access private
-// const getUserDashboardData = async (req, res) => {
-//   try {
-//     const userId = req.user._id;
-
-//     // ✅ Hem created hem assigned
-//     const userFilter = {
-//       $or: [{ createdBy: userId }, { assignedTo: userId }],
-//     };
-
-//     // Fetch statistics
-//     const totalTasks = await Task.countDocuments(userFilter);
-//     const pendingTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: "Pending",
-//     });
-//     const completedTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: "Completed",
-//     });
-//     const overdueTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: { $ne: "Completed" },
-//       dueDate: { $lt: new Date() },
-//     });
-
-//     // Task distribution by status
-//     const taskStatuses = ["Pending", "In Progress", "Completed"];
-//     const taskDistributionRaw = await Task.aggregate([
-//       { $match: userFilter }, // ✅ userFilter kullan
-//       {
-//         $group: {
-//           _id: "$status",
-//           count: { $sum: 1 },
-//         },
-//       },
-//     ]);
-
-//     // Yaklaşan görevler (3 gün içinde)
-//     const threeDaysLater = new Date();
-//     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-//     const upcomingTasks = await Task.countDocuments({
-//       ...userFilter,
-//       status: { $ne: "Completed" },
-//       dueDate: {
-//         $gte: new Date(), // Bugünden sonra
-//         $lte: threeDaysLater, // 3 gün içinde
-//       },
-//     });
-
-//     const taskDistribution = taskStatuses.reduce((acc, status) => {
-//       const formattedKey = status.replace(/\s+/g, "");
-//       acc[formattedKey] =
-//         taskDistributionRaw.find((item) => item._id === status)?.count || 0;
-//       return acc;
-//     }, {});
-//     taskDistribution["All"] = totalTasks; // ✅ All ekle
-
-//     // Task distribution by priority
-//     const taskPriorities = ["Low", "Medium", "High"];
-//     const taskPriorityLevelsRaw = await Task.aggregate([
-//       { $match: userFilter }, // ✅ userFilter kullan
-//       {
-//         $group: {
-//           _id: "$priority",
-//           count: { $sum: 1 },
-//         },
-//       },
-//     ]);
-
-//     const taskPriorityLevels = taskPriorities.reduce((acc, priority) => {
-//       acc[priority] =
-//         taskPriorityLevelsRaw.find((item) => item._id === priority)?.count || 0;
-//       return acc;
-//     }, {});
-
-//     // Fetch recent 10 tasks
-//     const recentTasks = await Task.find(userFilter) // ✅ userFilter kullan
-//       .sort({ createdAt: -1 })
-//       .limit(10)
-//       .select("title status priority dueDate createdAt");
-
-//     res.status(200).json({
-//       statistics: {
-//         totalTasks,
-//         pendingTasks,
-//         completedTasks,
-//         overdueTasks,
-//         upcomingTasks,
-//       },
-//       charts: {
-//         taskDistribution,
-//         taskPriorityLevels,
-//       },
-//       recentTasks,
-//     });
-//   } catch (error) {
-//     console.error("getUserDashboardData error:", error); // ✅ Debug
-//     res.status(500).json({ message: "Server error", error: error.message });
-//   }
-// };
-
-// module.exports = {
-//   getTasks,
-//   getTaskById,
-//   createTask,
-//   updateTask,
-//   deleteTask,
-//   updateTaskStatus,
-//   updateTaskChecklist,
-//   getDashboardData,
-//   getUserDashboardData,
-// };

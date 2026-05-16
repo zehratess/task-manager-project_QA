@@ -1,4 +1,6 @@
 import React from "react";
+import PropTypes from 'prop-types';
+
 import {
   BarChart,
   Bar,
@@ -6,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Cell,
 } from "recharts";
@@ -27,6 +28,7 @@ const CustomBarChart = ({ data }) => {
     }
   };
 
+// Alt bileşen için tip tanımı
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
@@ -46,6 +48,12 @@ const CustomBarChart = ({ data }) => {
     return null;
   };
 
+  // CustomTooltip için PropTypes 
+  CustomTooltip.propTypes = {
+    active: PropTypes.bool,
+    payload: PropTypes.array,
+  };
+
   return (
     <div className="mt-4">
       <ResponsiveContainer width="100%" height={300}>
@@ -59,7 +67,7 @@ const CustomBarChart = ({ data }) => {
           />
 
           <YAxis
-            allowDecimals={false} // ✅ Aradaki küsuratlı sayıları siler, sadece tam sayıları gösterir.
+            allowDecimals={false} 
             tick={{ fontSize: 12, fill: "#64748b" }}
             stroke="#cbd5e1"
           />
@@ -78,6 +86,16 @@ const CustomBarChart = ({ data }) => {
       </ResponsiveContainer>
     </div>
   );
+};
+
+// CustomBarChart için PropTypes 
+CustomBarChart.propTypes = {
+  data: PropTypes.arrayOf(
+    PropTypes.shape({
+      priority: PropTypes.string,
+      count: PropTypes.number,
+    })
+  ).isRequired,
 };
 
 export default CustomBarChart;
