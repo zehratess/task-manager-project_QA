@@ -138,13 +138,13 @@ describe("Task API Smoke Tests", () => {
       taskId = res.body.task._id;
     });
 
-    it("should return 500 when required fields are missing", async () => {
+    it("should return 400 when required fields are missing", async () => {
       const res = await request(app)
         .post("/api/tasks")
         .set("Authorization", `Bearer ${adminToken}`)
         .send({ title: "Sadece Başlık" });
 
-      expect(res.statusCode).toBe(500);
+      expect(res.statusCode).toBe(400); //500 , 400 olarak 1.aşamada belirlenen şekilde değiştirildi.
     });
   });
 
