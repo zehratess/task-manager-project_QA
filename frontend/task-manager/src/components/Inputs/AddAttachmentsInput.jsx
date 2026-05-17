@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { LuLink, LuUpload, LuX } from "react-icons/lu";
 import axiosInstance from "../../utils/axiosInstance";
 import { toast } from "react-hot-toast";
-import propTypes from 'prop-types';
+import PropTypes from 'prop-types';
 
 const AddAttachmentsInput = ({ todoList, setTodoList, user }) => {
   const [inputValue, setInputValue] = useState("");
@@ -56,9 +56,6 @@ const AddAttachmentsInput = ({ todoList, setTodoList, user }) => {
         setTodoList([...todoList, newFile]); // Diziye obje atıyoruz
         toast.success("File uploaded successfully!");
       }
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || "Failed to upload file. Please try again.";
-      toast.error(errorMessage);
     } finally {
       setUploading(false);
       e.target.value = ""; // Reset file input
