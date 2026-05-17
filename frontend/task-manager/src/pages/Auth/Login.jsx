@@ -67,6 +67,7 @@ const Login = () => {
         }
       }
     } catch (error) {
+      console.error("Login failed:", error);
       const errorMsg = "Incorrect email or password.";
       setError(errorMsg);
       localStorage.setItem("loginError", errorMsg);
