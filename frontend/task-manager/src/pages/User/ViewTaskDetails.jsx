@@ -7,7 +7,7 @@ import AvatarGroup from "../../components/AvatarGroup";
 import moment from "moment";
 import { LuSquareArrowOutUpRight } from "react-icons/lu";
 import { toast } from "react-hot-toast";
-import propTypes from 'prop-types';
+import PropTypes from "prop-types";
 
 const ViewTaskDetails = () => {
   const { id } = useParams();
@@ -37,6 +37,7 @@ const ViewTaskDetails = () => {
         setTask(response.data);
       }
     } catch (error) {
+      console.error(error);
       toast.error("Failed to fetch task details. Please try again.");
     }
   }, [id]);
@@ -49,6 +50,7 @@ const ViewTaskDetails = () => {
         setCurrentUser(response.data);
       }
     } catch (error) {
+      console.error(error);
       toast.error("Failed to fetch user info. Please try again.");
     }
   }, []);
@@ -75,6 +77,7 @@ const ViewTaskDetails = () => {
         todoChecklist[index].completed = !todoChecklist[index].completed;
       }
     } catch (error) {
+      console.error(error);
       toast.error("Failed to update checklist. Please try again.");
       // Revert the toggle on error
       todoChecklist[index].completed = !todoChecklist[index].completed;
