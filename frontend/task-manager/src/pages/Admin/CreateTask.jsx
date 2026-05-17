@@ -84,7 +84,7 @@ const CreateTask = () => {
         fileSize: item.fileSize || 0,
       }));
 
-      const response = await axiosInstance.post(API_PATHS.TASKS.CREATE_TASK, {
+      await axiosInstance.post(API_PATHS.TASKS.CREATE_TASK, {
         title: taskData.title,
         description: taskData.description,
         priority: taskData.priority,
@@ -148,7 +148,7 @@ const CreateTask = () => {
         requestBody.assignedTo = taskData.assignedTo;
       }
 
-      const response = await axiosInstance.put(
+      await axiosInstance.put(
         API_PATHS.TASKS.UPDATE_TASK(taskId),
         requestBody
       );
@@ -178,11 +178,11 @@ const CreateTask = () => {
         const taskInfo = response.data;
         setCurrentTask(taskInfo);
 
-        setTaskData((prevState) => ({
+        setTaskData({
           title: taskInfo.title,
           description: taskInfo.description,
           priority: taskInfo.priority,
-          category: taskInfo.category || "Other", // ✅ YENİ ALAN
+          category: taskInfo.category || "Other",
           dueDate: taskInfo.dueDate
             ? moment(taskInfo.dueDate).format("YYYY-MM-DD")
             : null,
@@ -190,7 +190,7 @@ const CreateTask = () => {
           todoChecklist:
             taskInfo?.todoChecklist.map((item) => item?.text) || [],
           attachments: taskInfo?.attachments || [],
-        }));
+        });
       }
     } catch (error) {
       console.error("Error fetching task:", error);
